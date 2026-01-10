@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum LessonStatus {
+  SCHEDULED
+  CANCELLED
+  DONE
+  MOVED
+}
+
+enum LessonSource {
+  REGULAR
+  EXCEPTION
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  fullName     String
+  role         Role
+  passwordHash String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  taughtAssignments     StudentAssignment[]   @relation("TeacherAssignments")
+  studentAssignments    StudentAssignment[]   @relation("StudentAssignments")
+  teacherAvailabilities TeacherAvailability[]
+  lessonsAsTeacher      Lesson[]              @relation("LessonsTeacher")
+  lessonsAsStudent      Lesson[]              @relation("LessonsStudent")
+}
+
+model Instrument {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  assignments StudentAssignment[]
+  lessons     Lesson[]
+}
+
+model StudentAssignment {
+  id           String @id @default(cuid())
+  studentId    String
+  teacherId    String
+  instrumentId String
+
+  // slot fisso settimanale
+  weekday      Int // 0 = lunedì ... 6 = domenica
+  startTime    String // "HH:MM"
+  durationMins Int    @default(60)
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  student    User       @relation("StudentAssignments", fields: [studentId], references: [id])
+  teacher    User       @relation("TeacherAssignments", fields: [teacherId], references: [id])
+  instrument Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@index([studentId])
+  @@index([teacherId])
+}
+
+model TeacherAvailability {
+  id        String   @id @default(cuid())
+  teacherId String
+  weekday   Int // 0..6
+  startTime String // "HH:MM"
+  endTime   String // "HH:MM"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  teacher User @relation(fields: [teacherId], references: [id])
+
+  @@index([teacherId, weekday])
+}
+
+model Lesson {
+  id           String @id @default(cuid())
+  studentId    String
+  teacherId    String
+  instrumentId String
+
+  startsAt  DateTime
+  endsAt    DateTime
+  weekStart DateTime // lunedì della settimana
+
+  source LessonSource
+  status LessonStatus @default(SCHEDULED)
+
+  cancelledAt DateTime?
+  cancelledBy String?
+  lateCancel  Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+
+  student    User       @relation("LessonsStudent", fields: [studentId], references: [id])
+  teacher    User       @relation("LessonsTeacher", fields: [teacherId], references: [id])
+  instrument Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@index([teacherId, startsAt])
+  @@index([studentId, startsAt])
+  @@index([weekStart, teacherId])
+}
