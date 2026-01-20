@@ -2,127 +2,114 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-function badRequest(message: string, details?: unknown) {
-  return NextResponse.json({ error: message, details }, { status: 400 });
+function parseDateOrNull(v: unknown) {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+function weekStartUTC(d: Date) {
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = x.getUTCDay();
+  const diffToMonday = (day + 6) % 7;
+  x.setUTCDate(x.getUTCDate() - diffToMonday);
+  x.setUTCHours(0, 0, 0, 0);
+  return x;
+}
+
+async function assertCanMutateLesson(session: any, lessonId: string) {
+  if (session.role === "ADMIN") return;
+
+  if (session.role !== "TEACHER") {
+    throw Object.assign(new Error("forbidden"), { status: 403 });
+  }
+
+  const l = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { teacherId: true } });
+  if (!l) throw Object.assign(new Error("not found"), { status: 404 });
+  if (l.teacherId !== session.sub) throw Object.assign(new Error("forbidden"), { status: 403 });
+}
+
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.sub) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  const id = params.id;
+  const { id } = await ctx.params;
 
-  const lesson = await prisma.lesson.findUnique({
+  // Permessi
+  try {
+    await assertCanMutateLesson(session, id);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: e.status ?? 500 });
+  }
+
+  const body = await req.json().catch(() => null);
+
+  const startsAt = parseDateOrNull(body?.startsAt);
+  const endsAt = parseDateOrNull(body?.endsAt);
+  const status = typeof body?.status === "string" ? body.status : null; // LessonStatus
+
+  if (!startsAt && !endsAt && !status) {
+    return NextResponse.json({ error: "nothing to update" }, { status: 400 });
+  }
+
+  if ((startsAt && !endsAt) || (!startsAt && endsAt)) {
+    return NextResponse.json(
+      { error: "startsAt and endsAt must be provided together" },
+      { status: 400 }
+    );
+  }
+
+  if (startsAt && endsAt && endsAt <= startsAt) {
+    return NextResponse.json({ error: "endsAt must be after startsAt" }, { status: 400 });
+  }
+
+  const data: any = {};
+  if (startsAt && endsAt) {
+    data.startsAt = startsAt;
+    data.endsAt = endsAt;
+    data.weekStart = weekStartUTC(startsAt);
+  }
+  if (status) data.status = status;
+
+  const lesson = await prisma.lesson.update({
     where: { id },
+    data,
     include: {
-      student: { select: { id: true, username: true, fullName: true, role: true } },
-      teacher: { select: { id: true, username: true, fullName: true, role: true } },
+      student: { select: { id: true, username: true, fullName: true } },
+      teacher: { select: { id: true, username: true, fullName: true } },
       instrument: { select: { id: true, name: true } },
     },
   });
 
-  if (!lesson) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const allowed =
-    session.role === "ADMIN" ||
-    (session.role === "TEACHER" && lesson.teacherId === session.userId) ||
-    (session.role === "STUDENT" && lesson.studentId === session.userId);
-
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   return NextResponse.json({ lesson });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.sub) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  // Per ora: solo ADMIN può eliminare
-  if (session.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const { id } = await ctx.params;
 
-  const id = params.id;
-
-  const existing = await prisma.lesson.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await prisma.lesson.delete({ where: { id } });
-
-  return NextResponse.json({ ok: true });
-}
-
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const id = params.id;
-
-  const existing = await prisma.lesson.findUnique({ where: { id } });
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  // ADMIN può tutto
-  // TEACHER può modificare solo le proprie lezioni
-  // STUDENT: per ora no (poi possiamo permettere cancellazione/lateCancel ecc.)
-  if (session.role === "STUDENT") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  if (session.role === "TEACHER" && existing.teacherId !== session.userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  let body: any;
+  // Permessi
   try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
+    await assertCanMutateLesson(session, id);
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: e.status ?? 500 });
   }
 
-  // Campi aggiornabili (scelti da noi, coerenti col tuo schema)
-  const {
-    startsAt,
-    endsAt,
-    weekStart,
-    source,
-    status,
-    cancelledAt,
-    cancelledBy,
-    lateCancel,
-    studentId,
-    teacherId,
-    instrumentId,
-  } = body ?? {};
+  const lesson = await prisma.lesson.update({
+    where: { id },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelledBy: session.sub,
+    },
+    include: {
+      student: { select: { id: true, username: true, fullName: true } },
+      teacher: { select: { id: true, username: true, fullName: true } },
+      instrument: { select: { id: true, name: true } },
+    },
+  });
 
-  // Prepariamo data update solo con i campi presenti
-  const data: any = {};
-
-  // Se passi date, devono essere ISO valide
-  if (startsAt !== undefined) {
-    const d = new Date(startsAt);
-    if (Number.isNaN(d.getTime())) return badRequest("Invalid startsAt (ISO)");
-    data.startsAt = d;
-  }
-  if (endsAt !== undefined) {
-    const d = new Date(endsAt);
-    if (Number.isNaN(d.getTime())) return badRequest("Invalid endsAt (ISO)");
-    data.endsAt = d;
-  }
-  if (weekStart !== undefined) {
-    const d = new Date(weekStart);
-    if (Number.isNaN(d.getTime())) return badRequest("Invalid weekStart (ISO)");
-    data.weekStart = d;
-  }
-
-  // Se entrambe presenti, controlliamo ordine
-  const newStarts = data.startsAt ?? existing.startsAt;
-  const newEnds = data.endsAt ?? existing.endsAt;
-  if (newEnds <= newStarts) return badRequest("endsAt must b
+  return NextResponse.json({ lesson });
+}

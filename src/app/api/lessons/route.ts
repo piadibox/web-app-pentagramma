@@ -2,33 +2,44 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-function badRequest(message: string, details?: unknown) {
-  return NextResponse.json({ error: message, details }, { status: 400 });
+// Monday 00:00 UTC of the week containing d
+function weekStartUTC(d: Date) {
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = x.getUTCDay(); // 0=Sun..6=Sat
+  const diffToMonday = (day + 6) % 7; // Mon->0 ... Sun->6
+  x.setUTCDate(x.getUTCDate() - diffToMonday);
+  x.setUTCHours(0, 0, 0, 0);
+  return x;
+}
+
+function parseDateOrNull(v: unknown) {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.sub) {
+    return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+  }
 
-  const { searchParams } = new URL(req.url);
+  const url = new URL(req.url);
+  const from = parseDateOrNull(url.searchParams.get("from"));
+  const to = parseDateOrNull(url.searchParams.get("to"));
 
-  const teacherId = searchParams.get("teacherId") ?? undefined;
-  const studentId = searchParams.get("studentId") ?? undefined;
-  const weekStart = searchParams.get("weekStart") ?? undefined;
+  const where: any = {};
 
-  const authWhere =
-    session.role === "ADMIN"
-      ? {}
-      : session.role === "TEACHER"
-        ? { teacherId: session.userId }
-        : { studentId: session.userId };
+  // visibilità per ruolo
+  if (session.role === "TEACHER") where.teacherId = session.sub;
+  if (session.role === "STUDENT") where.studentId = session.sub;
 
-  const where = {
-    ...authWhere,
-    ...(teacherId ? { teacherId } : {}),
-    ...(studentId ? { studentId } : {}),
-    ...(weekStart ? { weekStart: new Date(weekStart) } : {}),
-  };
+  // filtro date opzionale
+  if (from || to) {
+    where.startsAt = {};
+    if (from) where.startsAt.gte = from;
+    if (to) where.startsAt.lt = to;
+  }
 
   const lessons = await prisma.lesson.findMany({
     where,
@@ -45,72 +56,67 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (session.role === "STUDENT") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.sub) {
+    return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }
 
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return badRequest("Invalid JSON body");
+  // Permessi: ADMIN e TEACHER possono creare lezioni
+  if (session.role !== "ADMIN" && session.role !== "TEACHER") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const {
-    studentId,
-    teacherId,
-    instrumentId,
-    startsAt,
-    endsAt,
-    weekStart,
-    source,
-    status,
-  } = body ?? {};
+  const body = await req.json().catch(() => null);
 
-  if (!studentId || !teacherId || !instrumentId) {
-    return badRequest("Missing studentId / teacherId / instrumentId");
-  }
-  if (!startsAt || !endsAt || !weekStart) {
-    return badRequest("Missing startsAt / endsAt / weekStart");
-  }
-  if (!source) {
-    return badRequest("Missing source (REGULAR | EXCEPTION)");
-  }
+  const studentId = typeof body?.studentId === "string" ? body.studentId : null;
+  const instrumentId = typeof body?.instrumentId === "string" ? body.instrumentId : null;
 
-  const starts = new Date(startsAt);
-  const ends = new Date(endsAt);
-  const week = new Date(weekStart);
+  // se TEACHER, teacherId è forzato a sé stesso
+  const teacherId =
+    session.role === "TEACHER"
+      ? session.sub
+      : typeof body?.teacherId === "string"
+      ? body.teacherId
+      : null;
 
-  if (
-    Number.isNaN(starts.getTime()) ||
-    Number.isNaN(ends.getTime()) ||
-    Number.isNaN(week.getTime())
-  ) {
-    return badRequest("Invalid date format (use ISO)");
+  const startsAt = parseDateOrNull(body?.startsAt);
+  const endsAt = parseDateOrNull(body?.endsAt);
+
+  const source = typeof body?.source === "string" ? body.source : "REGULAR"; // LessonSource
+  const status = typeof body?.status === "string" ? body.status : "SCHEDULED"; // LessonStatus
+
+  if (!studentId || !teacherId || !instrumentId || !startsAt || !endsAt) {
+    return NextResponse.json(
+      {
+        error: "missing/invalid fields",
+        required: ["studentId", "teacherId", "instrumentId", "startsAt", "endsAt"],
+      },
+      { status: 400 }
+    );
   }
 
-  if (ends <= starts) {
-    return badRequest("endsAt must be after startsAt");
+  if (endsAt <= startsAt) {
+    return NextResponse.json({ error: "endsAt must be after startsAt" }, { status: 400 });
   }
 
-  if (source !== "REGULAR" && source !== "EXCEPTION") {
-    return badRequest("Invalid source");
-  }
+  // ✅ Anti-duplicato: stessa lezione già esistente
+  const existing = await prisma.lesson.findFirst({
+    where: {
+      studentId,
+      teacherId,
+      instrumentId,
+      startsAt,
+      endsAt,
+      // opzionale: ignora se cancellata
+      status: { not: "CANCELLED" },
+    },
+    select: { id: true },
+  });
 
-  if (
-    status &&
-    status !== "SCHEDULED" &&
-    status !== "CANCELLED" &&
-    status !== "DONE" &&
-    status !== "MOVED"
-  ) {
-    return badRequest("Invalid status");
-  }
-
-  if (session.role === "TEACHER" && teacherId !== session.userId) {
-    return NextResponse.json({ error: "Forbidden: wrong teacherId" }, { status: 403 });
+  if (existing) {
+    return NextResponse.json(
+      { error: "duplicate lesson", lessonId: existing.id },
+      { status: 409 }
+    );
   }
 
   const lesson = await prisma.lesson.create({
@@ -118,15 +124,15 @@ export async function POST(req: Request) {
       studentId,
       teacherId,
       instrumentId,
-      startsAt: starts,
-      endsAt: ends,
-      weekStart: week,
+      startsAt,
+      endsAt,
+      weekStart: weekStartUTC(startsAt),
       source,
-      status: status ?? "SCHEDULED",
+      status,
     },
     include: {
-      student: { select: { id: true, username: true, fullName: true, role: true } },
-      teacher: { select: { id: true, username: true, fullName: true, role: true } },
+      student: { select: { id: true, username: true, fullName: true } },
+      teacher: { select: { id: true, username: true, fullName: true } },
       instrument: { select: { id: true, name: true } },
     },
   });
