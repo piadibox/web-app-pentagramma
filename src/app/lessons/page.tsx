@@ -29,6 +29,12 @@ function addDaysUTC(iso: string, days: number) {
   return d.toISOString();
 }
 
+function addMinutesISO(iso: string, minutes: number) {
+  const d = new Date(iso);
+  d.setUTCMinutes(d.getUTCMinutes() + minutes);
+  return d.toISOString();
+}
+
 export default function LessonsPage() {
   const [weekStart, setWeekStart] = useState(() => toISOWeekStartUTC(new Date()));
 
@@ -72,6 +78,32 @@ export default function LessonsPage() {
         method: "DELETE",
         credentials: "include",
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function moveLessonPlus1h(l: LessonRow) {
+    if (l.status === "CANCELLED") return;
+
+    setBusyId(l.id);
+    try {
+      const startsAt = addMinutesISO(l.startsAt, 60);
+      const endsAt = addMinutesISO(l.endsAt, 60);
+
+      const res = await fetch(`/api/lessons/${l.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ startsAt, endsAt }),
+      });
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data?.error ?? `HTTP ${res.status}`);
@@ -177,6 +209,22 @@ export default function LessonsPage() {
                       <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{l.status}</td>
                       <td style={{ padding: 10, borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
                         <button
+                          onClick={() => moveLessonPlus1h(l)}
+                          disabled={isCancelled || busyId === l.id}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            border: "1px solid #ddd",
+                            background: "white",
+                            cursor: isCancelled ? "not-allowed" : "pointer",
+                            marginRight: 8,
+                          }}
+                          title={isCancelled ? "Già annullata" : "Sposta di +1 ora"}
+                        >
+                          {busyId === l.id ? "..." : "+1h"}
+                        </button>
+
+                        <button
                           onClick={() => cancelLesson(l.id)}
                           disabled={isCancelled || busyId === l.id}
                           style={{
@@ -201,7 +249,8 @@ export default function LessonsPage() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <CreateLessonButton weekStart={weekStart} />
+        <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
+
       </div>
     </main>
   );

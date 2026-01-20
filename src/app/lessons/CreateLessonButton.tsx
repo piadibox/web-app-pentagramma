@@ -2,20 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Props = { weekStart: string };
+type Props = {
+  weekStart: string;
+  onCreated?: () => void;
+};
 
 type LookupUser = { id: string; username: string; fullName: string | null };
 type LookupInstrument = { id: string; name: string };
 
 function isoFromWeekStart(weekStartISO: string, dayIndex: number, hour: number, minute: number) {
-  // weekStartISO è Monday 00:00Z
   const d = new Date(weekStartISO);
   d.setUTCDate(d.getUTCDate() + dayIndex);
   d.setUTCHours(hour, minute, 0, 0);
   return d.toISOString();
 }
 
-export default function CreateLessonButton({ weekStart }: Props) {
+export default function CreateLessonButton({ weekStart, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -28,8 +30,7 @@ export default function CreateLessonButton({ weekStart }: Props) {
   const [teacherId, setTeacherId] = useState("");
   const [instrumentId, setInstrumentId] = useState("");
 
-  // ✅ nuova parte: giorno + ora + durata
-  const [dayIndex, setDayIndex] = useState(0); // 0=Lun ... 6=Dom
+  const [dayIndex, setDayIndex] = useState(0);
   const [startHour, setStartHour] = useState(17);
   const [startMinute, setStartMinute] = useState(0);
   const [durationMin, setDurationMin] = useState(60);
@@ -114,7 +115,7 @@ export default function CreateLessonButton({ weekStart }: Props) {
         setMsg(`Errore ${res.status}: ${json?.error ?? "unknown"}`);
       } else {
         setMsg(`OK! Creata lezione id=${json.lesson.id}`);
-        window.location.reload();
+        onCreated?.(); // ✅ refresh tabella senza reload pagina
       }
     } catch (e: any) {
       setMsg(`Errore: ${e?.message ?? String(e)}`);
@@ -173,7 +174,6 @@ export default function CreateLessonButton({ weekStart }: Props) {
           </select>
         </label>
 
-        {/* ✅ Data/ora */}
         <label style={{ display: "grid", gap: 6 }}>
           <div style={{ fontSize: 12, opacity: 0.75 }}>Giorno</div>
           <select
@@ -217,14 +217,6 @@ export default function CreateLessonButton({ weekStart }: Props) {
             ))}
           </select>
         </label>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Preview</div>
-          <div style={{ fontSize: 13, whiteSpace: "nowrap" }}>
-            {new Date(startsAt).toLocaleString("it-IT")} →{" "}
-            {new Date(endsAt).toLocaleTimeString("it-IT")}
-          </div>
-        </div>
 
         <button
           onClick={onClick}
