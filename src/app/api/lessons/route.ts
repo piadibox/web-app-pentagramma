@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -18,6 +20,12 @@ function parseDateOrNull(v: unknown) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function addDays(d: Date, days: number) {
+  const x = new Date(d);
+  x.setUTCDate(x.getUTCDate() + days);
+  return x;
+}
+
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session?.sub) {
@@ -25,8 +33,13 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const from = parseDateOrNull(url.searchParams.get("from"));
-  const to = parseDateOrNull(url.searchParams.get("to"));
+
+  // ✅ supporto weekStart (range: [weekStart, weekStart + 7 giorni))
+  const weekStart = parseDateOrNull(url.searchParams.get("weekStart"));
+
+  // supporto anche from/to (se non passi weekStart)
+  const from = weekStart ? weekStart : parseDateOrNull(url.searchParams.get("from"));
+  const to = weekStart ? addDays(weekStart, 7) : parseDateOrNull(url.searchParams.get("to"));
 
   const where: any = {};
 
@@ -60,7 +73,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }
 
-  // Permessi: ADMIN e TEACHER possono creare lezioni
   if (session.role !== "ADMIN" && session.role !== "TEACHER") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
@@ -70,7 +82,6 @@ export async function POST(req: Request) {
   const studentId = typeof body?.studentId === "string" ? body.studentId : null;
   const instrumentId = typeof body?.instrumentId === "string" ? body.instrumentId : null;
 
-  // se TEACHER, teacherId è forzato a sé stesso
   const teacherId =
     session.role === "TEACHER"
       ? session.sub
@@ -81,8 +92,8 @@ export async function POST(req: Request) {
   const startsAt = parseDateOrNull(body?.startsAt);
   const endsAt = parseDateOrNull(body?.endsAt);
 
-  const source = typeof body?.source === "string" ? body.source : "REGULAR"; // LessonSource
-  const status = typeof body?.status === "string" ? body.status : "SCHEDULED"; // LessonStatus
+  const source = typeof body?.source === "string" ? body.source : "REGULAR";
+  const status = typeof body?.status === "string" ? body.status : "SCHEDULED";
 
   if (!studentId || !teacherId || !instrumentId || !startsAt || !endsAt) {
     return NextResponse.json(
@@ -98,7 +109,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "endsAt must be after startsAt" }, { status: 400 });
   }
 
-  // ✅ Anti-duplicato: stessa lezione già esistente
   const existing = await prisma.lesson.findFirst({
     where: {
       studentId,
@@ -106,17 +116,13 @@ export async function POST(req: Request) {
       instrumentId,
       startsAt,
       endsAt,
-      // opzionale: ignora se cancellata
       status: { not: "CANCELLED" },
     },
     select: { id: true },
   });
 
   if (existing) {
-    return NextResponse.json(
-      { error: "duplicate lesson", lessonId: existing.id },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "duplicate lesson", lessonId: existing.id }, { status: 409 });
   }
 
   const lesson = await prisma.lesson.create({
