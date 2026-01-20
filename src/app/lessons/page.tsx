@@ -16,7 +16,7 @@ type LessonRow = {
 
 function toISOWeekStartUTC(d: Date) {
   const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = x.getUTCDay(); // 0=Sun..6=Sat
+  const day = x.getUTCDay();
   const diffToMonday = (day + 6) % 7;
   x.setUTCDate(x.getUTCDate() - diffToMonday);
   x.setUTCHours(0, 0, 0, 0);
@@ -44,10 +44,16 @@ export default function LessonsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const [hideCancelled, setHideCancelled] = useState(true);
+
   const weekLabel = useMemo(() => {
     const d = new Date(weekStart);
     return d.toLocaleDateString("it-IT", { dateStyle: "medium" });
   }, [weekStart]);
+
+  const visibleLessons = useMemo(() => {
+    return hideCancelled ? lessons.filter((l) => l.status !== "CANCELLED") : lessons;
+  }, [lessons, hideCancelled]);
 
   async function load(ws = weekStart) {
     setLoading(true);
@@ -147,6 +153,21 @@ export default function LessonsPage() {
         </div>
       </div>
 
+      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={hideCancelled}
+            onChange={(e) => setHideCancelled(e.target.checked)}
+          />
+          <span style={{ fontSize: 13, opacity: 0.8 }}>Nascondi annullate</span>
+        </label>
+
+        <div style={{ fontSize: 13, opacity: 0.7 }}>
+          Mostrate: <strong>{visibleLessons.length}</strong> / {lessons.length}
+        </div>
+      </div>
+
       <div style={{ marginTop: 16 }}>
         {loading ? (
           <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
@@ -156,7 +177,7 @@ export default function LessonsPage() {
           <div style={{ padding: 12, border: "1px solid #f0c", borderRadius: 8 }}>
             <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(json, null, 2)}</pre>
           </div>
-        ) : lessons.length === 0 ? (
+        ) : visibleLessons.length === 0 ? (
           <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
             Nessuna lezione trovata.
           </div>
@@ -189,7 +210,7 @@ export default function LessonsPage() {
                 </tr>
               </thead>
               <tbody>
-                {lessons.map((l) => {
+                {visibleLessons.map((l) => {
                   const isCancelled = l.status === "CANCELLED";
                   return (
                     <tr key={l.id} style={{ opacity: isCancelled ? 0.6 : 1 }}>
@@ -250,7 +271,6 @@ export default function LessonsPage() {
 
       <div style={{ marginTop: 16 }}>
         <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
-
       </div>
     </main>
   );
