@@ -30,7 +30,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
     }
 
-    // JWT
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret");
 
     const token = await new SignJWT({
@@ -58,13 +57,7 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch (e: any) {
-    console.error("LOGIN_ROUTE_ERROR:", e);
-    console.error("LOGIN_ROUTE_ERROR_STACK:", e?.stack);
-
-    return NextResponse.json(
-      { error: "server error", message: e?.message ?? String(e) },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "server error" }, { status: 500 });
   }
 }
