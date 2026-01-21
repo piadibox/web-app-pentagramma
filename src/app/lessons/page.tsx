@@ -51,11 +51,7 @@ export default function LessonsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const [hideCancelled, setHideCancelled] = useState(true);
-
-  // filtro testo
   const [q, setQ] = useState("");
-
-  // per ogni lezione: scelta "sposta di X minuti"
   const [shiftById, setShiftById] = useState<Record<string, number>>({});
 
   const weekLabelLong = useMemo(() => {
@@ -170,7 +166,6 @@ export default function LessonsPage() {
   return (
     <main className="min-h-screen bg-neutral-50">
       <div className="mx-auto max-w-6xl px-4 py-6 space-y-10">
-        {/* Header pagina */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Lezioni</h1>
@@ -196,7 +191,6 @@ export default function LessonsPage() {
           </div>
         </header>
 
-        {/* Card tabella lezioni */}
         <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -246,11 +240,12 @@ export default function LessonsPage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-neutral-50 text-left">
                     <tr className="text-neutral-700">
-                      {["Quando", "Studente", "Insegnante", "Strumento", "Stato", "Azioni"].map((h) => (
-                        <th key={h} className="px-4 py-3 font-semibold whitespace-nowrap">
-                          {h}
-                        </th>
-                      ))}
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Quando</th>
+                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Studente</th>
+                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Insegnante</th>
+                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Strumento</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Stato</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Azioni</th>
                     </tr>
                   </thead>
 
@@ -260,19 +255,39 @@ export default function LessonsPage() {
                       const isBusy = busyId === l.id;
                       const shift = shiftById[l.id] ?? 60;
 
+                      const student = l.student?.fullName ?? l.student?.username ?? "-";
+                      const teacher = l.teacher?.fullName ?? l.teacher?.username ?? "-";
+                      const instr = l.instrument?.name ?? "-";
+
                       return (
                         <tr key={l.id} className="hover:bg-neutral-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-neutral-900">
-                            {new Date(l.startsAt).toLocaleString("it-IT")} →{" "}
-                            {new Date(l.endsAt).toLocaleTimeString("it-IT")}
+                          <td className="px-4 py-3 text-neutral-900">
+                            <div className="whitespace-nowrap">
+                              {new Date(l.startsAt).toLocaleString("it-IT")} →{" "}
+                              {new Date(l.endsAt).toLocaleTimeString("it-IT")}
+                            </div>
+
+                            {/* mobile-only details */}
+                            <div className="mt-2 space-y-1 text-xs text-neutral-600 md:hidden">
+                              <div>
+                                <span className="text-neutral-500">Studente:</span>{" "}
+                                <span className="font-medium text-neutral-800">{student}</span>
+                              </div>
+                              <div>
+                                <span className="text-neutral-500">Insegnante:</span>{" "}
+                                <span className="font-medium text-neutral-800">{teacher}</span>
+                              </div>
+                              <div>
+                                <span className="text-neutral-500">Strumento:</span>{" "}
+                                <span className="font-medium text-neutral-800">{instr}</span>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-neutral-800">
-                            {l.student?.fullName ?? l.student?.username ?? "-"}
-                          </td>
-                          <td className="px-4 py-3 text-neutral-800">
-                            {l.teacher?.fullName ?? l.teacher?.username ?? "-"}
-                          </td>
-                          <td className="px-4 py-3 text-neutral-800">{l.instrument?.name ?? "-"}</td>
+
+                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{student}</td>
+                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{teacher}</td>
+                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{instr}</td>
+
                           <td className="px-4 py-3">
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass(
@@ -292,7 +307,6 @@ export default function LessonsPage() {
                                 }
                                 disabled={isCancelled || isBusy}
                                 className={selectCls}
-                                title="Sposta di"
                               >
                                 <option value="15">+15 min</option>
                                 <option value="30">+30 min</option>
@@ -300,21 +314,11 @@ export default function LessonsPage() {
                                 <option value="90">+90 min</option>
                               </select>
 
-                              <button
-                                onClick={() => applyShift(l)}
-                                disabled={isCancelled || isBusy}
-                                className={btnCls}
-                                title="Applica spostamento"
-                              >
+                              <button onClick={() => applyShift(l)} disabled={isCancelled || isBusy} className={btnCls}>
                                 {isBusy ? "…" : "Applica"}
                               </button>
 
-                              <button
-                                onClick={() => cancelLesson(l.id)}
-                                disabled={isCancelled || isBusy}
-                                className={btnCls}
-                                title="Annulla lezione"
-                              >
+                              <button onClick={() => cancelLesson(l.id)} disabled={isCancelled || isBusy} className={btnCls}>
                                 {isBusy ? "…" : "Annulla"}
                               </button>
                             </div>
@@ -331,7 +335,6 @@ export default function LessonsPage() {
           </div>
         </section>
 
-        {/* Card crea lezione */}
         <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
             <h2 className="text-base font-semibold text-neutral-900">
