@@ -52,7 +52,10 @@ export default function LessonsPage() {
 
   const [hideCancelled, setHideCancelled] = useState(true);
 
-  // ⬇️ per ogni lezione memorizziamo la scelta "sposta di X minuti"
+  // filtro testo
+  const [q, setQ] = useState("");
+
+  // per ogni lezione: scelta "sposta di X minuti"
   const [shiftById, setShiftById] = useState<Record<string, number>>({});
 
   const weekLabelLong = useMemo(() => {
@@ -66,8 +69,29 @@ export default function LessonsPage() {
   }, [weekStart]);
 
   const visibleLessons = useMemo(() => {
-    return hideCancelled ? lessons.filter((l) => l.status !== "CANCELLED") : lessons;
-  }, [lessons, hideCancelled]);
+    const base = hideCancelled ? lessons.filter((l) => l.status !== "CANCELLED") : lessons;
+
+    const needle = q.trim().toLowerCase();
+    if (!needle) return base;
+
+    return base.filter((l) => {
+      const hay = [
+        l.student?.fullName,
+        l.student?.username,
+        l.teacher?.fullName,
+        l.teacher?.username,
+        l.instrument?.name,
+        l.status,
+        l.source,
+        l.id,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(needle);
+    });
+  }, [lessons, hideCancelled, q]);
 
   async function load(ws = weekStart) {
     setLoading(true);
@@ -160,22 +184,13 @@ export default function LessonsPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))}
-              className={btnCls}
-            >
+            <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))} className={btnCls}>
               ← Prev
             </button>
-            <button
-              onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))}
-              className={btnCls}
-            >
+            <button onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))} className={btnCls}>
               Oggi
             </button>
-            <button
-              onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))}
-              className={btnCls}
-            >
+            <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))} className={btnCls}>
               Next →
             </button>
           </div>
@@ -184,10 +199,10 @@ export default function LessonsPage() {
         {/* Card tabella lezioni */}
         <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-semibold text-neutral-900">Tabella lezioni</h2>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <label className="flex items-center gap-2 text-sm text-neutral-700">
                   <input
                     type="checkbox"
@@ -197,6 +212,13 @@ export default function LessonsPage() {
                   />
                   Nascondi annullate
                 </label>
+
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Filtra… (studente, insegnante, strumento)"
+                  className="w-full sm:w-72 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
+                />
 
                 <div className="text-sm text-neutral-600">
                   Mostrate: <span className="font-medium text-neutral-900">{visibleLessons.length}</span> /{" "}
