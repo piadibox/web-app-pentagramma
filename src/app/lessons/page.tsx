@@ -52,6 +52,9 @@ export default function LessonsPage() {
 
   const [hideCancelled, setHideCancelled] = useState(true);
 
+  // ⬇️ per ogni lezione memorizziamo la scelta "sposta di X minuti"
+  const [shiftById, setShiftById] = useState<Record<string, number>>({});
+
   const weekLabelLong = useMemo(() => {
     const d = new Date(weekStart);
     return d.toLocaleDateString("it-IT", { dateStyle: "full" });
@@ -106,13 +109,15 @@ export default function LessonsPage() {
     }
   }
 
-  async function moveLessonPlus1h(l: LessonRow) {
+  async function applyShift(l: LessonRow) {
     if (l.status === "CANCELLED") return;
+
+    const minutes = shiftById[l.id] ?? 60;
 
     setBusyId(l.id);
     try {
-      const startsAt = addMinutesISO(l.startsAt, 60);
-      const endsAt = addMinutesISO(l.endsAt, 60);
+      const startsAt = addMinutesISO(l.startsAt, minutes);
+      const endsAt = addMinutesISO(l.endsAt, minutes);
 
       const res = await fetch(`/api/lessons/${l.id}`, {
         method: "PATCH",
@@ -131,6 +136,12 @@ export default function LessonsPage() {
       setBusyId(null);
     }
   }
+
+  const selectCls =
+    "rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10";
+
+  const btnCls =
+    "rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50";
 
   return (
     <main className="min-h-screen bg-neutral-50">
@@ -151,19 +162,19 @@ export default function LessonsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))}
-              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
+              className={btnCls}
             >
               ← Prev
             </button>
             <button
               onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))}
-              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
+              className={btnCls}
             >
               Oggi
             </button>
             <button
               onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))}
-              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
+              className={btnCls}
             >
               Next →
             </button>
@@ -225,6 +236,7 @@ export default function LessonsPage() {
                     {visibleLessons.map((l) => {
                       const isCancelled = l.status === "CANCELLED";
                       const isBusy = busyId === l.id;
+                      const shift = shiftById[l.id] ?? 60;
 
                       return (
                         <tr key={l.id} className="hover:bg-neutral-50">
@@ -248,22 +260,42 @@ export default function LessonsPage() {
                               {l.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <button
-                              onClick={() => moveLessonPlus1h(l)}
-                              disabled={isCancelled || isBusy}
-                              className="rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
-                            >
-                              {isBusy ? "…" : "+1h"}
-                            </button>
 
-                            <button
-                              onClick={() => cancelLesson(l.id)}
-                              disabled={isCancelled || isBusy}
-                              className="ml-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
-                            >
-                              {isBusy ? "…" : "Annulla"}
-                            </button>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select
+                                value={String(shift)}
+                                onChange={(e) =>
+                                  setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
+                                }
+                                disabled={isCancelled || isBusy}
+                                className={selectCls}
+                                title="Sposta di"
+                              >
+                                <option value="15">+15 min</option>
+                                <option value="30">+30 min</option>
+                                <option value="60">+60 min</option>
+                                <option value="90">+90 min</option>
+                              </select>
+
+                              <button
+                                onClick={() => applyShift(l)}
+                                disabled={isCancelled || isBusy}
+                                className={btnCls}
+                                title="Applica spostamento"
+                              >
+                                {isBusy ? "…" : "Applica"}
+                              </button>
+
+                              <button
+                                onClick={() => cancelLesson(l.id)}
+                                disabled={isCancelled || isBusy}
+                                className={btnCls}
+                                title="Annulla lezione"
+                              >
+                                {isBusy ? "…" : "Annulla"}
+                              </button>
+                            </div>
 
                             <div className="mt-2 hidden md:block text-xs text-neutral-400 font-mono">{l.id}</div>
                           </td>
@@ -281,8 +313,7 @@ export default function LessonsPage() {
         <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
             <h2 className="text-base font-semibold text-neutral-900">
-              Crea lezione{" "}
-              <span className="font-normal text-neutral-600">(Settimana dal {weekLabelShort})</span>
+              Crea lezione <span className="font-normal text-neutral-600">(Settimana dal {weekLabelShort})</span>
             </h2>
           </div>
 
