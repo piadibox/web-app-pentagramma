@@ -17,6 +17,8 @@ function isoFromWeekStart(weekStartISO: string, dayIndex: number, hour: number, 
   return d.toISOString();
 }
 
+const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+
 export default function CreateLessonButton({ weekStart, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -115,7 +117,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
         setMsg(`Errore ${res.status}: ${json?.error ?? "unknown"}`);
       } else {
         setMsg(`OK! Creata lezione id=${json.lesson.id}`);
-        onCreated?.(); // ✅ refresh tabella senza reload pagina
+        onCreated?.();
       }
     } catch (e: any) {
       setMsg(`Errore: ${e?.message ?? String(e)}`);
@@ -124,18 +126,19 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
     }
   }
 
-  const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+  const preview = `${new Date(startsAt).toLocaleString("it-IT")} → ${new Date(endsAt).toLocaleTimeString("it-IT")}`;
+
+  const labelCls = "text-sm font-semibold tracking-wide text-neutral-900";
+
+  const fieldCls =
+    "w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10";
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Studente</div>
-          <select
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", minWidth: 240 }}
-          >
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <label className="space-y-1">
+          <div className={labelCls}>Studente</div>
+          <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className={fieldCls}>
             {students.map((u) => (
               <option key={u.id} value={u.id}>
                 {(u.fullName ?? u.username) + ` (${u.username})`}
@@ -144,13 +147,9 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Docente</div>
-          <select
-            value={teacherId}
-            onChange={(e) => setTeacherId(e.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", minWidth: 240 }}
-          >
+        <label className="space-y-1">
+          <div className={labelCls}>Insegnante</div>
+          <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={fieldCls}>
             {teachers.map((u) => (
               <option key={u.id} value={u.id}>
                 {(u.fullName ?? u.username) + ` (${u.username})`}
@@ -159,13 +158,9 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Strumento</div>
-          <select
-            value={instrumentId}
-            onChange={(e) => setInstrumentId(e.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", minWidth: 220 }}
-          >
+        <label className="space-y-1">
+          <div className={labelCls}>Strumento</div>
+          <select value={instrumentId} onChange={(e) => setInstrumentId(e.target.value)} className={fieldCls}>
             {instruments.map((x) => (
               <option key={x.id} value={x.id}>
                 {x.name}
@@ -174,13 +169,9 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Giorno</div>
-          <select
-            value={String(dayIndex)}
-            onChange={(e) => setDayIndex(Number(e.target.value))}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", minWidth: 90 }}
-          >
+        <label className="space-y-1">
+          <div className={labelCls}>Giorno</div>
+          <select value={String(dayIndex)} onChange={(e) => setDayIndex(Number(e.target.value))} className={fieldCls}>
             {days.map((d, idx) => (
               <option key={d} value={String(idx)}>
                 {d}
@@ -189,8 +180,8 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Ora inizio</div>
+        <label className="space-y-1">
+          <div className={labelCls}>Ora inizio</div>
           <input
             type="time"
             value={`${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}`}
@@ -199,17 +190,13 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
               setStartHour(h);
               setStartMinute(m);
             }}
-            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #ddd" }}
+            className={fieldCls}
           />
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Durata</div>
-          <select
-            value={String(durationMin)}
-            onChange={(e) => setDurationMin(Number(e.target.value))}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd", minWidth: 110 }}
-          >
+        <label className="space-y-1">
+          <div className={labelCls}>Durata</div>
+          <select value={String(durationMin)} onChange={(e) => setDurationMin(Number(e.target.value))} className={fieldCls}>
             {[30, 45, 60, 90, 120].map((m) => (
               <option key={m} value={String(m)}>
                 {m} min
@@ -217,32 +204,31 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
             ))}
           </select>
         </label>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-neutral-700">
+          <span className="text-neutral-500">Preview:</span> <span className="font-medium">{preview}</span>
+        </div>
 
         <button
           onClick={onClick}
           disabled={loading || !!lookupError}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #ddd",
-            background: loading ? "#f3f3f3" : "white",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontWeight: 600,
-          }}
+          className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-neutral-800 disabled:opacity-50"
         >
-          {loading ? "Creo..." : "Crea lezione"}
+          {loading ? "Creo…" : "Crea lezione"}
         </button>
       </div>
 
       {lookupError ? (
-        <div style={{ marginTop: 10, color: "#b00020" }}>
-          Errore lookups: <code>{lookupError}</code>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Errore lookups: <span className="font-mono">{lookupError}</span>
         </div>
       ) : null}
 
       {msg ? (
-        <div style={{ marginTop: 10, opacity: 0.85 }}>
-          <code>{msg}</code>
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-800">
+          <span className="font-mono">{msg}</span>
         </div>
       ) : null}
     </div>

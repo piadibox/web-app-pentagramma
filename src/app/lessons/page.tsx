@@ -35,6 +35,12 @@ function addMinutesISO(iso: string, minutes: number) {
   return d.toISOString();
 }
 
+function badgeClass(status: string) {
+  if (status === "CANCELLED") return "bg-neutral-100 text-neutral-700 ring-neutral-200";
+  if (status === "SCHEDULED") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  return "bg-blue-50 text-blue-700 ring-blue-200";
+}
+
 export default function LessonsPage() {
   const [weekStart, setWeekStart] = useState(() => toISOWeekStartUTC(new Date()));
 
@@ -46,7 +52,12 @@ export default function LessonsPage() {
 
   const [hideCancelled, setHideCancelled] = useState(true);
 
-  const weekLabel = useMemo(() => {
+  const weekLabelLong = useMemo(() => {
+    const d = new Date(weekStart);
+    return d.toLocaleDateString("it-IT", { dateStyle: "full" });
+  }, [weekStart]);
+
+  const weekLabelShort = useMemo(() => {
     const d = new Date(weekStart);
     return d.toLocaleDateString("it-IT", { dateStyle: "medium" });
   }, [weekStart]);
@@ -122,155 +133,163 @@ export default function LessonsPage() {
   }
 
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Lezioni</h1>
-          <div style={{ opacity: 0.7 }}>
-            Settimana dal <strong>{weekLabel}</strong> — status API: <strong>{status ?? "..."}</strong>
+    <main className="min-h-screen bg-neutral-50">
+      <div className="mx-auto max-w-6xl px-4 py-6 space-y-10">
+        {/* Header pagina */}
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Lezioni</h1>
+            <div className="text-sm text-neutral-600">
+              Settimana: <span className="font-medium text-neutral-900">{weekLabelLong}</span>{" "}
+              <span className="text-neutral-400">•</span>{" "}
+              <span>
+                API: <span className="font-medium text-neutral-900">{status ?? "…"}</span>
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd", background: "white" }}
-          >
-            ← Prev
-          </button>
-          <button
-            onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd", background: "white" }}
-          >
-            Oggi
-          </button>
-          <button
-            onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd", background: "white" }}
-          >
-            Next →
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={hideCancelled}
-            onChange={(e) => setHideCancelled(e.target.checked)}
-          />
-          <span style={{ fontSize: 13, opacity: 0.8 }}>Nascondi annullate</span>
-        </label>
-
-        <div style={{ fontSize: 13, opacity: 0.7 }}>
-          Mostrate: <strong>{visibleLessons.length}</strong> / {lessons.length}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        {loading ? (
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-            Caricamento…
-          </div>
-        ) : status !== 200 ? (
-          <div style={{ padding: 12, border: "1px solid #f0c", borderRadius: 8 }}>
-            <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(json, null, 2)}</pre>
-          </div>
-        ) : visibleLessons.length === 0 ? (
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-            Nessuna lezione trovata.
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-              }}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
             >
-              <thead>
-                <tr style={{ background: "#fafafa" }}>
-                  {["Quando", "Studente", "Insegnante", "Strumento", "Stato", "Azioni"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: "left",
-                        padding: 10,
-                        borderBottom: "1px solid #ddd",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleLessons.map((l) => {
-                  const isCancelled = l.status === "CANCELLED";
-                  return (
-                    <tr key={l.id} style={{ opacity: isCancelled ? 0.6 : 1 }}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
-                        {new Date(l.startsAt).toLocaleString("it-IT")} →{" "}
-                        {new Date(l.endsAt).toLocaleTimeString("it-IT")}
-                      </td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
-                        {l.student?.fullName ?? l.student?.username ?? "-"}
-                      </td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
-                        {l.teacher?.fullName ?? l.teacher?.username ?? "-"}
-                      </td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
-                        {l.instrument?.name ?? "-"}
-                      </td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{l.status}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
-                        <button
-                          onClick={() => moveLessonPlus1h(l)}
-                          disabled={isCancelled || busyId === l.id}
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                            background: "white",
-                            cursor: isCancelled ? "not-allowed" : "pointer",
-                            marginRight: 8,
-                          }}
-                          title={isCancelled ? "Già annullata" : "Sposta di +1 ora"}
-                        >
-                          {busyId === l.id ? "..." : "+1h"}
-                        </button>
-
-                        <button
-                          onClick={() => cancelLesson(l.id)}
-                          disabled={isCancelled || busyId === l.id}
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                            background: isCancelled ? "#f5f5f5" : "white",
-                            cursor: isCancelled ? "not-allowed" : "pointer",
-                          }}
-                          title={isCancelled ? "Già annullata" : "Annulla lezione"}
-                        >
-                          {busyId === l.id ? "..." : "Annulla"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              ← Prev
+            </button>
+            <button
+              onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
+            >
+              Oggi
+            </button>
+            <button
+              onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50"
+            >
+              Next →
+            </button>
           </div>
-        )}
-      </div>
+        </header>
 
-      <div style={{ marginTop: 16 }}>
-        <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
+        {/* Card tabella lezioni */}
+        <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-neutral-900">Tabella lezioni</h2>
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-neutral-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-neutral-900"
+                    checked={hideCancelled}
+                    onChange={(e) => setHideCancelled(e.target.checked)}
+                  />
+                  Nascondi annullate
+                </label>
+
+                <div className="text-sm text-neutral-600">
+                  Mostrate: <span className="font-medium text-neutral-900">{visibleLessons.length}</span> /{" "}
+                  {lessons.length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4">
+            {loading ? (
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                Caricamento…
+              </div>
+            ) : status !== 200 ? (
+              <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm">
+                <pre className="whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre>
+              </div>
+            ) : visibleLessons.length === 0 ? (
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                Nessuna lezione trovata.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-neutral-200">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-neutral-50 text-left">
+                    <tr className="text-neutral-700">
+                      {["Quando", "Studente", "Insegnante", "Strumento", "Stato", "Azioni"].map((h) => (
+                        <th key={h} className="px-4 py-3 font-semibold whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-neutral-200 bg-white">
+                    {visibleLessons.map((l) => {
+                      const isCancelled = l.status === "CANCELLED";
+                      const isBusy = busyId === l.id;
+
+                      return (
+                        <tr key={l.id} className="hover:bg-neutral-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-neutral-900">
+                            {new Date(l.startsAt).toLocaleString("it-IT")} →{" "}
+                            {new Date(l.endsAt).toLocaleTimeString("it-IT")}
+                          </td>
+                          <td className="px-4 py-3 text-neutral-800">
+                            {l.student?.fullName ?? l.student?.username ?? "-"}
+                          </td>
+                          <td className="px-4 py-3 text-neutral-800">
+                            {l.teacher?.fullName ?? l.teacher?.username ?? "-"}
+                          </td>
+                          <td className="px-4 py-3 text-neutral-800">{l.instrument?.name ?? "-"}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass(
+                                l.status
+                              )}`}
+                            >
+                              {l.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button
+                              onClick={() => moveLessonPlus1h(l)}
+                              disabled={isCancelled || isBusy}
+                              className="rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+                            >
+                              {isBusy ? "…" : "+1h"}
+                            </button>
+
+                            <button
+                              onClick={() => cancelLesson(l.id)}
+                              disabled={isCancelled || isBusy}
+                              className="ml-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50"
+                            >
+                              {isBusy ? "…" : "Annulla"}
+                            </button>
+
+                            <div className="mt-2 hidden md:block text-xs text-neutral-400 font-mono">{l.id}</div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Card crea lezione */}
+        <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+            <h2 className="text-base font-semibold text-neutral-900">
+              Crea lezione{" "}
+              <span className="font-normal text-neutral-600">(Settimana dal {weekLabelShort})</span>
+            </h2>
+          </div>
+
+          <div className="p-4">
+            <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
+          </div>
+        </section>
       </div>
     </main>
   );
