@@ -15,7 +15,7 @@ export default function LoginPage() {
     fetch("/api/auth/me")
       .then((r) => r.ok)
       .then((ok) => {
-        if (ok) router.replace("/");
+        if (ok) router.replace("/lessons");
       })
       .catch(() => {});
   }, [router]);
@@ -39,7 +39,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace("/");
+      router.replace("/lessons");
       router.refresh();
     } catch {
       setError("Errore di rete");
