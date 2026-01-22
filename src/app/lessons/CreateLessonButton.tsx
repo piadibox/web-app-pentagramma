@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "../components/ToastProvider";
 
 type Props = {
   weekStart: string;
@@ -20,8 +21,8 @@ function isoFromWeekStart(weekStartISO: string, dayIndex: number, hour: number, 
 const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
 export default function CreateLessonButton({ weekStart, onCreated }: Props) {
+  const { pushToast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState("");
 
   const [students, setStudents] = useState<LookupUser[]>([]);
   const [teachers, setTeachers] = useState<LookupUser[]>([]);
@@ -85,10 +86,9 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
 
   async function onClick() {
     setLoading(true);
-    setMsg("");
 
     if (!studentId || !teacherId || !instrumentId) {
-      setMsg("Seleziona studente, docente e strumento.");
+      pushToast("Seleziona studente, docente e strumento.", "error");
       setLoading(false);
       return;
     }
@@ -114,13 +114,13 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setMsg(`Errore ${res.status}: ${json?.error ?? "unknown"}`);
+        pushToast(json?.error ?? `HTTP ${res.status}`, "error");
       } else {
-        setMsg(`OK! Creata lezione id=${json.lesson.id}`);
+        pushToast("Lezione creata", "success");
         onCreated?.();
       }
     } catch (e: any) {
-      setMsg(`Errore: ${e?.message ?? String(e)}`);
+      pushToast(e?.message ?? "Errore di rete", "error");
     } finally {
       setLoading(false);
     }
@@ -128,10 +128,10 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
 
   const preview = `${new Date(startsAt).toLocaleString("it-IT")} → ${new Date(endsAt).toLocaleTimeString("it-IT")}`;
 
-  const labelCls = "text-sm font-semibold tracking-wide text-slate-800";
+  const labelCls = "text-sm font-semibold tracking-wide text-[#1B2B4A]";
 
   const fieldCls =
-    "w-full rounded-xl border border-amber-200/70 bg-white/90 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20";
+    "w-full rounded-xl border border-[#C9DAFF] bg-white px-3 py-2 text-sm text-[#1B2B4A] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3A75E9]/30";
 
   return (
     <div className="space-y-3">
@@ -207,30 +207,26 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-slate-700">
-          <span className="text-slate-500">Preview:</span> <span className="font-semibold text-amber-700">{preview}</span>
+        <div className="text-sm text-[#5B6F99]">
+          <span className="text-[#7A8DB5]">Preview:</span>{" "}
+          <span className="font-semibold text-[#1B2B4A]">{preview}</span>
         </div>
 
         <button
           onClick={onClick}
           disabled={loading || !!lookupError}
-          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:from-amber-500 hover:to-sky-500 disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-xl border border-[#3A75E9] bg-[#3A75E9] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#2F67D8] disabled:opacity-50"
         >
           {loading ? "Creo…" : "Crea lezione"}
         </button>
       </div>
 
       {lookupError ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-[#E44949] bg-white p-3 text-sm text-[#8A2B2B]">
           Errore lookups: <span className="font-mono">{lookupError}</span>
         </div>
       ) : null}
 
-      {msg ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <span className="font-mono">{msg}</span>
-        </div>
-      ) : null}
     </div>
   );
 }

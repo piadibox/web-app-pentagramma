@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import CreateLessonButton from "./CreateLessonButton";
+import { useToast } from "../components/ToastProvider";
 
 type LessonRow = {
   id: string;
@@ -70,9 +71,8 @@ export default function LessonsPage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Array<{ id: number; tone: "success" | "error" | "info"; text: string }>>(
-    []
-  );
+
+  const { pushToast } = useToast();
 
   const weekLabelLong = useMemo(() => {
     const d = new Date(weekStart);
@@ -115,14 +115,6 @@ export default function LessonsPage() {
       return true;
     });
   }, [lessons, hideCancelled, q, teacherFilter, studentFilter, instrumentFilter]);
-
-  const pushToast = useCallback((text: string, tone: "success" | "error" | "info" = "info") => {
-    const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((prev) => [...prev, { id, tone, text }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
-  }, []);
 
   async function load(ws = weekStart) {
     setLoading(true);
@@ -234,7 +226,7 @@ export default function LessonsPage() {
         pushToast(data?.error ?? `HTTP ${res.status}`, "error");
         return;
       }
-      pushToast("Lezione annullata.", "success");
+      pushToast("Lezione annullata", "success");
       await load();
     } finally {
       setBusyId(null);
@@ -263,7 +255,7 @@ export default function LessonsPage() {
         pushToast(data?.error ?? `HTTP ${res.status}`, "error");
         return;
       }
-      pushToast("Lezione posticipata.", "success");
+      pushToast("Lezione spostata", "success");
       await load();
     } finally {
       setBusyId(null);
@@ -307,24 +299,6 @@ export default function LessonsPage() {
     >
       <div className="pointer-events-none absolute -top-24 right-[-10rem] h-72 w-72 rounded-full bg-[#CFE0FF]/70 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[-10rem] left-[-8rem] h-72 w-72 rounded-full bg-[#AFCBFF]/60 blur-3xl" />
-      {toasts.length ? (
-        <div className="fixed right-4 top-4 z-50 space-y-2">
-          {toasts.map((t) => (
-            <div
-              key={t.id}
-              className={`rounded-xl border px-4 py-2 text-sm shadow-lg ${
-                t.tone === "success"
-                  ? "border-[#BFD4FF] bg-white text-[#1B2B4A]"
-                  : t.tone === "error"
-                  ? "border-[#E44949] bg-white text-[#8A2B2B]"
-                  : "border-[#C9DAFF] bg-white text-[#1B2B4A]"
-              }`}
-            >
-              {t.text}
-            </div>
-          ))}
-        </div>
-      ) : null}
       <div className="relative mx-auto max-w-6xl px-4 py-6 space-y-12">
         <header className="rounded-2xl border border-[#BFD4FF] bg-white p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
@@ -563,7 +537,7 @@ export default function LessonsPage() {
       {confirmId ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#1B2B4A]/30 px-4">
           <div className="w-full max-w-md rounded-2xl border border-[#C9DAFF] bg-white p-6 shadow-xl">
-            <div className="text-lg font-semibold text-[#1B2B4A]">Conferma annullamento</div>
+                <div className="text-lg font-semibold text-[#1B2B4A]">Conferma annullamento</div>
             <div className="mt-2 text-sm text-[#5B6F99]">
               Vuoi annullare questa lezione?
               {confirmLesson ? (
@@ -578,16 +552,16 @@ export default function LessonsPage() {
               <button onClick={() => setConfirmId(null)} className={btnCls}>
                 Indietro
               </button>
-              <button
-                onClick={async () => {
-                  const id = confirmId;
-                  setConfirmId(null);
-                  await cancelLesson(id);
-                }}
-                className="rounded-xl border border-[#E44949] bg-[#E44949] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D43D3D]"
-              >
-                Conferma
-              </button>
+                <button
+                  onClick={async () => {
+                    const id = confirmId;
+                    setConfirmId(null);
+                    await cancelLesson(id);
+                  }}
+                  className="rounded-xl border border-[#E44949] bg-[#E44949] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D43D3D]"
+                >
+                  Conferma
+                </button>
             </div>
           </div>
         </div>
