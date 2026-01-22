@@ -36,9 +36,9 @@ function addMinutesISO(iso: string, minutes: number) {
 }
 
 function badgeClass(status: string) {
-  if (status === "CANCELLED") return "bg-neutral-100 text-neutral-700 ring-neutral-200";
-  if (status === "SCHEDULED") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-  return "bg-blue-50 text-blue-700 ring-blue-200";
+  if (status === "CANCELLED") return "bg-[#E44949] text-white ring-[#E44949]";
+  if (status === "SCHEDULED") return "bg-[#2F9E44] text-white ring-[#2F9E44]";
+  return "bg-[#3A75E9] text-white ring-[#3A75E9]";
 }
 
 export default function LessonsPage() {
@@ -158,98 +158,95 @@ export default function LessonsPage() {
   }
 
   const selectCls =
-    "rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10";
+    "rounded-xl border border-[#3A75E9] bg-white px-3 py-2 text-sm text-[#3A75E9] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3A75E9]/30";
 
   const btnCls =
-    "rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 shadow-sm hover:bg-neutral-50 disabled:opacity-50";
+    "rounded-xl border border-[#3A75E9] bg-white px-3 py-2 text-sm font-semibold text-[#3A75E9] shadow-sm hover:bg-[#3A75E9] hover:text-white disabled:opacity-50";
 
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <div className="mx-auto max-w-6xl px-4 py-6 space-y-10">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <main
+      className="relative min-h-screen overflow-hidden bg-[#F5F8FF] text-[#1B2B4A] leading-relaxed"
+      style={{ fontFamily: "Futura, Trebuchet MS, Arial, sans-serif" }}
+    >
+      <div className="pointer-events-none absolute -top-24 right-[-10rem] h-72 w-72 rounded-full bg-[#CFE0FF]/70 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-10rem] left-[-8rem] h-72 w-72 rounded-full bg-[#AFCBFF]/60 blur-3xl" />
+      <div className="relative mx-auto max-w-6xl px-4 py-6 space-y-12">
+        <header className="rounded-2xl border border-[#BFD4FF] bg-white p-5 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Lezioni</h1>
-            <div className="text-sm text-neutral-600">
-              Settimana: <span className="font-medium text-neutral-900">{weekLabelLong}</span>{" "}
-              <span className="text-neutral-400">•</span>{" "}
-              <span>
-                API: <span className="font-medium text-neutral-900">{status ?? "…"}</span>
-              </span>
-            </div>
-          </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-[#3A75E9]">
+              Lezioni
+            </h1>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <div className="text-sm text-[#5B6F99]">
+                Settimana: <span className="font-semibold text-[#1B2B4A]">{weekLabelLong}</span>{" "}
+                <span className="text-[#9BB1D6]">•</span>{" "}
+                <span>
+                  API: <span className="font-semibold text-[#1B2B4A]">{status ?? "…"}</span>
+                </span>
+              </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))} className={btnCls}>
-              ← Prev
-            </button>
-            <button onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))} className={btnCls}>
-              Oggi
-            </button>
-            <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))} className={btnCls}>
-              Next →
-            </button>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))} className={btnCls}>
+                  ← Prev
+                </button>
+                <button onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))} className={btnCls}>
+                  Oggi
+                </button>
+                <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))} className={btnCls}>
+                  Next →
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-base font-semibold text-neutral-900">Tabella lezioni</h2>
+        <div className="space-y-6">
+          <section className="rounded-3xl border border-[#C9DAFF] bg-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.25)] overflow-hidden">
+            <div className="border-b border-[#C9DAFF] bg-[#F0F5FF] px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-base font-semibold text-[#1B2B4A]">Tabella lezioni</h2>
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <label className="flex items-center gap-2 text-sm text-neutral-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-neutral-900"
-                    checked={hideCancelled}
-                    onChange={(e) => setHideCancelled(e.target.checked)}
-                  />
-                  Nascondi annullate
-                </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <label className="flex items-center gap-2 text-sm text-[#5B6F99]">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[#3A75E9]"
+                        checked={hideCancelled}
+                        onChange={(e) => setHideCancelled(e.target.checked)}
+                      />
+                      Nascondi annullate
+                    </label>
 
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Filtra… (studente, insegnante, strumento)"
-                  className="w-full sm:w-72 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10"
-                />
+                    <input
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder="Filtra… (studente, insegnante, strumento)"
+                      className="w-full sm:w-72 rounded-xl border border-[#C9DAFF] bg-white px-3 py-2 text-sm text-[#1B2B4A] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3A75E9]/30"
+                    />
 
-                <div className="text-sm text-neutral-600">
-                  Mostrate: <span className="font-medium text-neutral-900">{visibleLessons.length}</span> /{" "}
-                  {lessons.length}
+                    <div className="text-sm text-[#5B6F99]">
+                      Mostrate: <span className="font-semibold text-[#1B2B4A]">{visibleLessons.length}</span> /{" "}
+                      {lessons.length}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="p-4">
-            {loading ? (
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                Caricamento…
-              </div>
-            ) : status !== 200 ? (
-              <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4 text-sm">
-                <pre className="whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre>
-              </div>
-            ) : visibleLessons.length === 0 ? (
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                Nessuna lezione trovata.
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-neutral-200">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-neutral-50 text-left">
-                    <tr className="text-neutral-700">
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Quando</th>
-                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Studente</th>
-                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Insegnante</th>
-                      <th className="hidden md:table-cell px-4 py-3 font-semibold whitespace-nowrap">Strumento</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Stato</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Azioni</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-neutral-200 bg-white">
+              <div className="p-5">
+                {loading ? (
+                  <div className="rounded-xl border border-[#C9DAFF] bg-white p-4 text-sm text-[#1B2B4A]">
+                    Caricamento…
+                  </div>
+                ) : status !== 200 ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                    <pre className="whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre>
+                  </div>
+                ) : visibleLessons.length === 0 ? (
+                  <div className="rounded-xl border border-[#C9DAFF] bg-white p-4 text-sm text-[#1B2B4A]">
+                    Nessuna lezione trovata.
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
                     {visibleLessons.map((l) => {
                       const isCancelled = l.status === "CANCELLED";
                       const isBusy = busyId === l.id;
@@ -259,93 +256,108 @@ export default function LessonsPage() {
                       const teacher = l.teacher?.fullName ?? l.teacher?.username ?? "-";
                       const instr = l.instrument?.name ?? "-";
 
+                      const dateLabel = new Date(l.startsAt).toLocaleDateString("it-IT", { dateStyle: "full" });
+                      const timeLabel = `${new Date(l.startsAt).toLocaleTimeString("it-IT", {
+                        timeStyle: "short",
+                      })} → ${new Date(l.endsAt).toLocaleTimeString("it-IT", { timeStyle: "short" })}`;
+
                       return (
-                        <tr key={l.id} className="hover:bg-neutral-50">
-                          <td className="px-4 py-3 text-neutral-900">
-                            <div className="whitespace-nowrap">
-                              {new Date(l.startsAt).toLocaleString("it-IT")} →{" "}
-                              {new Date(l.endsAt).toLocaleTimeString("it-IT")}
+                        <li
+                          key={l.id}
+                          className="rounded-2xl border border-[#C9DAFF] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1.6fr_1fr] lg:items-center">
+                            <div className="space-y-2">
+                              <div className="text-sm font-semibold text-[#3A75E9]">{dateLabel}</div>
+                              <div className="text-lg font-bold text-[#1B2B4A]">{timeLabel}</div>
+                              <div className="text-xs text-[#7A8DB5] font-mono">{l.id}</div>
                             </div>
 
-                            {/* mobile-only details */}
-                            <div className="mt-2 space-y-1 text-xs text-neutral-600 md:hidden">
-                              <div>
-                                <span className="text-neutral-500">Studente:</span>{" "}
-                                <span className="font-medium text-neutral-800">{student}</span>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <div className="rounded-xl border border-[#C9DAFF] bg-[#F7FAFF] px-3 py-2.5">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-[#3A75E9]">
+                                  Studente
+                                </div>
+                                <div className="text-sm font-semibold text-[#1B2B4A]">{student}</div>
                               </div>
-                              <div>
-                                <span className="text-neutral-500">Insegnante:</span>{" "}
-                                <span className="font-medium text-neutral-800">{teacher}</span>
+                              <div className="rounded-xl border border-[#C9DAFF] bg-[#F7FAFF] px-3 py-2.5">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-[#3A75E9]">
+                                  Insegnante
+                                </div>
+                                <div className="text-sm font-semibold text-[#1B2B4A]">{teacher}</div>
                               </div>
-                              <div>
-                                <span className="text-neutral-500">Strumento:</span>{" "}
-                                <span className="font-medium text-neutral-800">{instr}</span>
+                              <div className="rounded-xl border border-[#C9DAFF] bg-[#F7FAFF] px-3 py-2.5">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-[#3A75E9]">
+                                  Strumento
+                                </div>
+                                <div className="text-sm font-semibold text-[#1B2B4A]">{instr}</div>
                               </div>
                             </div>
-                          </td>
 
-                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{student}</td>
-                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{teacher}</td>
-                          <td className="hidden md:table-cell px-4 py-3 text-neutral-800">{instr}</td>
-
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass(
-                                l.status
-                              )}`}
-                            >
-                              {l.status}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <select
-                                value={String(shift)}
-                                onChange={(e) =>
-                                  setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
-                                }
-                                disabled={isCancelled || isBusy}
-                                className={selectCls}
+                            <div className="flex flex-col gap-3 lg:items-end">
+                              <span
+                                className={`inline-flex items-center self-start rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass(
+                                  l.status
+                                )}`}
                               >
-                                <option value="15">+15 min</option>
-                                <option value="30">+30 min</option>
-                                <option value="60">+60 min</option>
-                                <option value="90">+90 min</option>
-                              </select>
+                                {l.status}
+                              </span>
 
-                              <button onClick={() => applyShift(l)} disabled={isCancelled || isBusy} className={btnCls}>
-                                {isBusy ? "…" : "Applica"}
-                              </button>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex flex-col gap-2">
+                                  <select
+                                    value={String(shift)}
+                                    onChange={(e) =>
+                                      setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
+                                    }
+                                    disabled={isCancelled || isBusy}
+                                    className={selectCls}
+                                  >
+                                    <option value="15">+15 min</option>
+                                    <option value="30">+30 min</option>
+                                    <option value="60">+60 min</option>
+                                    <option value="90">+90 min</option>
+                                  </select>
 
-                              <button onClick={() => cancelLesson(l.id)} disabled={isCancelled || isBusy} className={btnCls}>
-                                {isBusy ? "…" : "Annulla"}
-                              </button>
+                                  <button
+                                    onClick={() => applyShift(l)}
+                                    disabled={isCancelled || isBusy}
+                                    className={btnCls}
+                                  >
+                                    {isBusy ? "…" : "Posticipa"}
+                                  </button>
+                                </div>
+
+                                <button
+                                  onClick={() => cancelLesson(l.id)}
+                                  disabled={isCancelled || isBusy}
+                                  className={btnCls}
+                                >
+                                  {isBusy ? "…" : "Annulla lezione"}
+                                </button>
+                              </div>
                             </div>
-
-                            <div className="mt-2 hidden md:block text-xs text-neutral-400 font-mono">{l.id}</div>
-                          </td>
-                        </tr>
+                          </div>
+                        </li>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </ul>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-            <h2 className="text-base font-semibold text-neutral-900">
-              Crea lezione <span className="font-normal text-neutral-600">(Settimana dal {weekLabelShort})</span>
-            </h2>
-          </div>
+          <section className="rounded-3xl border border-[#C9DAFF] bg-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.25)] overflow-hidden">
+            <div className="border-b border-[#C9DAFF] bg-[#F0F5FF] px-5 py-4">
+              <h2 className="text-base font-semibold text-[#1B2B4A]">
+                Crea lezione <span className="font-normal text-[#5B6F99]">(Settimana dal {weekLabelShort})</span>
+              </h2>
+            </div>
 
-          <div className="p-4">
-            <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
-          </div>
-        </section>
+            <div className="p-5">
+              <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );

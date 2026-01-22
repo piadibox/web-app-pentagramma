@@ -12,8 +12,8 @@ type LookupInstrument = { id: string; name: string };
 
 function isoFromWeekStart(weekStartISO: string, dayIndex: number, hour: number, minute: number) {
   const d = new Date(weekStartISO);
-  d.setUTCDate(d.getUTCDate() + dayIndex);
-  d.setUTCHours(hour, minute, 0, 0);
+  d.setDate(d.getDate() + dayIndex);
+  d.setHours(hour, minute, 0, 0);
   return d.toISOString();
 }
 
@@ -79,7 +79,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
 
   const endsAt = useMemo(() => {
     const d = new Date(startsAt);
-    d.setUTCMinutes(d.getUTCMinutes() + durationMin);
+    d.setTime(d.getTime() + durationMin * 60_000);
     return d.toISOString();
   }, [startsAt, durationMin]);
 
@@ -128,10 +128,10 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
 
   const preview = `${new Date(startsAt).toLocaleString("it-IT")} → ${new Date(endsAt).toLocaleTimeString("it-IT")}`;
 
-  const labelCls = "text-sm font-semibold tracking-wide text-neutral-900";
+  const labelCls = "text-sm font-semibold tracking-wide text-slate-800";
 
   const fieldCls =
-    "w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10";
+    "w-full rounded-xl border border-amber-200/70 bg-white/90 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20";
 
   return (
     <div className="space-y-3">
@@ -207,27 +207,27 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-neutral-700">
-          <span className="text-neutral-500">Preview:</span> <span className="font-medium">{preview}</span>
+        <div className="text-sm text-slate-700">
+          <span className="text-slate-500">Preview:</span> <span className="font-semibold text-amber-700">{preview}</span>
         </div>
 
         <button
           onClick={onClick}
           disabled={loading || !!lookupError}
-          className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-neutral-800 disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-600 to-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:from-amber-500 hover:to-sky-500 disabled:opacity-50"
         >
           {loading ? "Creo…" : "Crea lezione"}
         </button>
       </div>
 
       {lookupError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           Errore lookups: <span className="font-mono">{lookupError}</span>
         </div>
       ) : null}
 
       {msg ? (
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <span className="font-mono">{msg}</span>
         </div>
       ) : null}
