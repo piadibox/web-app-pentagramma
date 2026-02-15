@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 type Me = { userId: string; role: string } | null;
@@ -36,22 +37,80 @@ export default function AppHeader() {
 
   if (pathname === "/login") return null;
 
+  const isLessons = pathname.startsWith("/lessons");
+
   return (
-    <div className="w-full border-b border-[#C9DAFF] bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <div className="text-sm font-semibold text-[#1B2B4A]">Pentagramma</div>
-        {me?.userId ? (
-          <div className="flex items-center gap-3 text-sm text-[#5B6F99]">
-            <span>{me.userId}</span>
+    <header className="relative overflow-hidden border-b border-[#253040] bg-[#101721] text-[#fff8e9]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(188,78,49,0.45),transparent_45%),radial-gradient(circle_at_82%_78%,rgba(32,46,66,0.7),transparent_48%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,18,26,0.7),rgba(14,18,26,0.2)_45%,rgba(188,78,49,0.4))]" />
+
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:py-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="rise-in space-y-1">
+            <p className="font-condensed text-xs uppercase tracking-[0.25em] text-[#f5d8b8]">Scuola di Musica</p>
+            <h1 className="font-display text-4xl font-bold uppercase leading-none text-[#fff6e6] sm:text-5xl">
+              Pentagramma
+            </h1>
+            <p className="max-w-xl text-sm text-[#e6d6bf]">
+              Gestione lezioni e pianificazione didattica con identita visuale editoriale.
+            </p>
+          </div>
+
+          <div className="rise-in flex items-center gap-3 self-start md:self-auto">
+            {me?.userId ? (
+              <div className="rounded-md border border-[#f3dfc3]/30 bg-[#121923]/70 px-3 py-2 text-xs">
+                <div className="font-condensed uppercase tracking-[0.14em] text-[#f3dfc3]">{me.role}</div>
+                <div className="text-[#fff8e9]">{me.userId}</div>
+              </div>
+            ) : null}
+            <div className="grid h-20 w-20 place-items-center rounded-full border-4 border-[#bc4e31] bg-[#f6e8cf] text-[#bc4e31] shadow-[0_14px_30px_-18px_rgba(8,12,16,0.9)]">
+              <span className="font-display text-4xl font-bold leading-none">P</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rise-in flex flex-wrap items-center justify-between gap-3">
+          <nav className="overflow-x-auto">
+            <ul className="flex min-w-max items-center gap-1 rounded-md bg-[#0f141d]/70 p-1">
+              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+                Eventi e News
+              </li>
+              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+                Iscrizioni
+              </li>
+              <li>
+                <Link
+                  href="/lessons"
+                  className={`font-condensed block rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] transition ${
+                    isLessons
+                      ? "bg-[#bc4e31] text-[#fff8e9]"
+                      : "bg-transparent text-[#ead8bf] hover:bg-[#bc4e31]/30 hover:text-[#fff8e9]"
+                  }`}
+                >
+                  Lezioni di Strumento
+                </Link>
+              </li>
+              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+                Corsi Straordinari
+              </li>
+              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+                Contatti
+              </li>
+            </ul>
+          </nav>
+
+          {me?.userId ? (
             <button
               onClick={logout}
-              className="rounded-full border border-[#C9DAFF] px-3 py-1 text-xs font-semibold text-[#3A75E9] hover:bg-[#F0F5FF]"
+              className="btn-primary rounded-sm px-4 py-2 font-condensed text-sm uppercase tracking-[0.08em]"
             >
               Logout
             </button>
-          </div>
-        ) : null}
+          ) : (
+            <div className="text-xs uppercase tracking-[0.14em] text-[#e6d6bf]/70">Ospite</div>
+          )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

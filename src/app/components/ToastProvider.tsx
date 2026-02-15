@@ -43,15 +43,16 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
           {toasts.map((t) => (
             <div
               key={t.id}
-              className={`rounded-xl border px-4 py-2 text-sm shadow-lg ${
+              className={`rounded-sm border px-4 py-2 text-sm shadow-lg ${
                 t.tone === "success"
-                  ? "border-[#BFD4FF] bg-white text-[#1B2B4A]"
+                  ? "border-[#8cab95] bg-[#f6efe0] text-[#233523]"
                   : t.tone === "error"
-                  ? "border-[#E44949] bg-white text-[#8A2B2B]"
-                  : "border-[#C9DAFF] bg-white text-[#1B2B4A]"
+                  ? "border-[#bc4e31] bg-[#fff1df] text-[#7a2818]"
+                  : "border-[#c6ad8e] bg-[#f6efe0] text-[#1d1712]"
               }`}
             >
-              {t.text}
+              <div className="font-condensed text-[11px] uppercase tracking-[0.1em] opacity-80">{t.tone}</div>
+              <div>{t.text}</div>
             </div>
           ))}
         </div>

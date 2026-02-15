@@ -128,13 +128,12 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
 
   const preview = `${new Date(startsAt).toLocaleString("it-IT")} → ${new Date(endsAt).toLocaleTimeString("it-IT")}`;
 
-  const labelCls = "text-sm font-semibold tracking-wide text-[#1B2B4A]";
+  const labelCls = "font-condensed text-xs uppercase tracking-[0.12em] text-[#6f5c4c]";
 
-  const fieldCls =
-    "w-full rounded-xl border border-[#C9DAFF] bg-white px-3 py-2 text-sm text-[#1B2B4A] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3A75E9]/30";
+  const fieldCls = "field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <label className="space-y-1">
           <div className={labelCls}>Studente</div>
@@ -206,27 +205,26 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
         </label>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-[#5B6F99]">
-          <span className="text-[#7A8DB5]">Preview:</span>{" "}
-          <span className="font-semibold text-[#1B2B4A]">{preview}</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-sm border border-[#c6ad8e] bg-[#fff8e9] px-3 py-2 text-sm text-[#6f5c4c]">
+          <span className="font-condensed text-xs uppercase tracking-[0.12em] text-[#bc4e31]">Preview</span>{" "}
+          <span className="ml-1 font-semibold text-[#1d1712]">{preview}</span>
         </div>
 
         <button
           onClick={onClick}
           disabled={loading || !!lookupError}
-          className="inline-flex items-center justify-center rounded-xl border border-[#3A75E9] bg-[#3A75E9] px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#2F67D8] disabled:opacity-50"
+          className="btn-primary inline-flex items-center justify-center rounded-sm px-4 py-2 font-condensed text-sm uppercase tracking-[0.08em] disabled:opacity-60"
         >
           {loading ? "Creo…" : "Crea lezione"}
         </button>
       </div>
 
       {lookupError ? (
-        <div className="rounded-xl border border-[#E44949] bg-white p-3 text-sm text-[#8A2B2B]">
+        <div className="rounded-sm border border-[#bc4e31]/60 bg-[#fff1df] p-3 text-sm text-[#8b321e]">
           Errore lookups: <span className="font-mono">{lookupError}</span>
         </div>
       ) : null}
-
     </div>
   );
 }

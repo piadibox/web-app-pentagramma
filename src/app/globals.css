@@ -1,16 +1,22 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap");
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: #f2e7d2;
+  --color-paper-soft: #f7efdf;
+  --color-ink: #1d1712;
+  --color-muted: #6f5c4c;
+  --color-line: #c6ad8e;
+  --color-terracotta: #bc4e31;
+  --color-terracotta-dark: #983e27;
+  --color-cream: #fff8e9;
+  --color-navy: #121923;
+  --color-navy-soft: #1c2736;
+  --shadow-soft: 0 26px 50px -36px rgba(24, 16, 10, 0.5);
+  --shadow-lift: 0 22px 42px -26px rgba(12, 16, 24, 0.45);
+  --font-display: "Bodoni Moda", "Didot", "Times New Roman", serif;
+  --font-heading: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-condensed: "Oswald", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
+  --font-body: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
 }
 
 html,
@@ -19,12 +25,22 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.55), transparent 34%),
+    radial-gradient(circle at 86% 78%, rgba(255, 255, 255, 0.34), transparent 38%),
+    linear-gradient(132deg, rgba(255, 255, 255, 0.2), rgba(188, 78, 49, 0.06)),
+    repeating-radial-gradient(circle at center, rgba(111, 92, 76, 0.06) 0 1px, transparent 1px 3px);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
 }
 
 * {
@@ -38,8 +54,79 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-condensed {
+  font-family: var(--font-condensed);
+}
+
+.surface-paper {
+  background: linear-gradient(180deg, rgba(255, 248, 233, 0.95), rgba(247, 239, 223, 0.9));
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+}
+
+.surface-dark {
+  background: linear-gradient(160deg, var(--color-navy), #0f141c 55%, #141d2a);
+  border: 1px solid rgba(255, 248, 233, 0.14);
+  box-shadow: var(--shadow-lift);
+  color: var(--color-cream);
+}
+
+.btn-primary {
+  border: 1px solid var(--color-terracotta-dark);
+  background: var(--color-terracotta);
+  color: var(--color-cream);
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-terracotta-dark);
+  box-shadow: 0 16px 28px -20px rgba(152, 62, 39, 0.9);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  border: 1px solid var(--color-line);
+  background: var(--color-cream);
+  color: var(--color-terracotta);
+  transition: all 180ms ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-terracotta);
+  background: #fff2dd;
+}
+
+.field-theme {
+  border: 1px solid var(--color-line);
+  background: rgba(255, 248, 233, 0.92);
+  color: var(--color-ink);
+}
+
+.field-theme:focus {
+  outline: none;
+  border-color: var(--color-terracotta);
+  box-shadow: 0 0 0 3px rgba(188, 78, 49, 0.18);
+}
+
+.rise-in {
+  animation: rise-in 420ms ease both;
+}
+
+@keyframes rise-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

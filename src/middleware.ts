@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
+const PUBLIC_FILE = /\.[^/]+$/;
+
 async function verifySession(req: NextRequest) {
   const token = req.cookies.get("session")?.value;
   if (!token) return null;
@@ -20,10 +22,8 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
+    PUBLIC_FILE.test(pathname) ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname.startsWith("/robots.txt") ||
-    pathname.startsWith("/sitemap.xml") ||
     pathname.startsWith("/api/auth")
   ) {
     return NextResponse.next();
@@ -63,5 +63,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|api/auth|.*\\..*).*)"],
 };
