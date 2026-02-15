@@ -303,9 +303,9 @@ export default function LessonsPage() {
           </div>
         </header>
 
-        <div className="space-y-5">
+        <div>
           <section className="surface-paper overflow-hidden rounded-lg">
-            <div className="border-b border-[#c6ad8e] bg-[#e4d0b1] px-4 py-3">
+            <div className="border-b border-[#c6ad8e] bg-[#fff8e9] px-4 py-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="font-heading text-2xl font-semibold uppercase text-[#1d1712]">Tabella lezioni</h2>
 
@@ -447,15 +447,15 @@ export default function LessonsPage() {
                                 {l.status}
                               </span>
 
-                              <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex flex-col gap-2">
+                              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
                                   <select
                                     value={String(shift)}
                                     onChange={(e) =>
                                       setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
                                     }
                                     disabled={isCancelled || isBusy}
-                                    className={selectCls}
+                                    className={`${selectCls} w-full sm:w-auto`}
                                   >
                                     <option value="15">+15 min</option>
                                     <option value="30">+30 min</option>
@@ -466,7 +466,7 @@ export default function LessonsPage() {
                                   <button
                                     onClick={() => applyShift(l)}
                                     disabled={isCancelled || isBusy}
-                                    className={btnCls}
+                                    className={`${btnCls} w-full sm:w-auto`}
                                   >
                                     {isBusy ? "…" : "Posticipa"}
                                   </button>
@@ -475,7 +475,7 @@ export default function LessonsPage() {
                                 <button
                                   onClick={() => setConfirmId(l.id)}
                                   disabled={isCancelled || isBusy}
-                                  className={btnCls}
+                                  className={`${btnCls} w-full sm:w-auto`}
                                 >
                                   {isBusy ? "…" : "Annulla lezione"}
                                 </button>
@@ -490,7 +490,7 @@ export default function LessonsPage() {
             </div>
           </section>
 
-          <section className="surface-dark overflow-hidden rounded-lg">
+          <section className="mt-10 md:mt-14 surface-dark overflow-hidden rounded-lg">
             <div className="border-b border-[#f1debf]/20 bg-[#0f141d] px-4 py-3">
               <h2 className="font-heading text-2xl font-semibold uppercase text-[#fff8e9]">
                 Crea lezione <span className="font-normal text-[#d9c5a8]">(Settimana dal {weekLabelShort})</span>

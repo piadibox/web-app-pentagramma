@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { LessonSource, LessonStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 
 // Monday 00:00 UTC of the week containing d
@@ -24,6 +25,20 @@ function addDays(d: Date, days: number) {
   const x = new Date(d);
   x.setUTCDate(x.getUTCDate() + days);
   return x;
+}
+
+function durationMinutes(startsAt: Date, endsAt: Date) {
+  return Math.round((endsAt.getTime() - startsAt.getTime()) / 60000);
+}
+
+const ALLOWED_DURATIONS = new Set([30, 45, 60, 90, 120]);
+
+function isValidLessonStatus(v: string): v is LessonStatus {
+  return v === "SCHEDULED" || v === "CANCELLED" || v === "DONE" || v === "MOVED";
+}
+
+function isValidLessonSource(v: string): v is LessonSource {
+  return v === "REGULAR" || v === "EXCEPTION";
 }
 
 export async function GET(req: Request) {
@@ -91,9 +106,11 @@ export async function POST(req: Request) {
 
   const startsAt = parseDateOrNull(body?.startsAt);
   const endsAt = parseDateOrNull(body?.endsAt);
+  const hasWeekStart = body?.weekStart != null;
+  const providedWeekStart = hasWeekStart ? parseDateOrNull(body?.weekStart) : null;
 
-  const source = typeof body?.source === "string" ? body.source : "REGULAR";
-  const status = typeof body?.status === "string" ? body.status : "SCHEDULED";
+  const sourceRaw = typeof body?.source === "string" ? body.source : "REGULAR";
+  const statusRaw = typeof body?.status === "string" ? body.status : "SCHEDULED";
 
   if (!studentId || !teacherId || !instrumentId || !startsAt || !endsAt) {
     return NextResponse.json(
@@ -109,20 +126,66 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "endsAt must be after startsAt" }, { status: 400 });
   }
 
-  const existing = await prisma.lesson.findFirst({
-    where: {
-      studentId,
-      teacherId,
-      instrumentId,
-      startsAt,
-      endsAt,
-      status: { not: "CANCELLED" },
-    },
-    select: { id: true },
-  });
+  if (!isValidLessonSource(sourceRaw)) {
+    return NextResponse.json({ error: "invalid source" }, { status: 400 });
+  }
 
-  if (existing) {
-    return NextResponse.json({ error: "duplicate lesson", lessonId: existing.id }, { status: 409 });
+  if (!isValidLessonStatus(statusRaw)) {
+    return NextResponse.json({ error: "invalid status" }, { status: 400 });
+  }
+
+  if (hasWeekStart && !providedWeekStart) {
+    return NextResponse.json({ error: "invalid weekStart" }, { status: 400 });
+  }
+
+  const duration = durationMinutes(startsAt, endsAt);
+  if (!ALLOWED_DURATIONS.has(duration)) {
+    return NextResponse.json(
+      { error: "invalid duration", allowed: [30, 45, 60, 90, 120] },
+      { status: 400 }
+    );
+  }
+
+  const computedWeekStart = weekStartUTC(startsAt);
+  if (providedWeekStart && providedWeekStart.getTime() !== computedWeekStart.getTime()) {
+    return NextResponse.json({ error: "weekStart mismatch with startsAt" }, { status: 400 });
+  }
+
+  if (statusRaw !== "CANCELLED") {
+    const [teacherConflict, studentConflict] = await Promise.all([
+      prisma.lesson.findFirst({
+        where: {
+          teacherId,
+          status: { not: "CANCELLED" },
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+        },
+        select: { id: true },
+      }),
+      prisma.lesson.findFirst({
+        where: {
+          studentId,
+          status: { not: "CANCELLED" },
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (teacherConflict) {
+      return NextResponse.json(
+        { error: "teacher already busy in this time range", code: "CONFLICT" },
+        { status: 409 }
+      );
+    }
+
+    if (studentConflict) {
+      return NextResponse.json(
+        { error: "student already busy in this time range", code: "CONFLICT" },
+        { status: 409 }
+      );
+    }
   }
 
   const lesson = await prisma.lesson.create({
@@ -132,9 +195,9 @@ export async function POST(req: Request) {
       instrumentId,
       startsAt,
       endsAt,
-      weekStart: weekStartUTC(startsAt),
-      source,
-      status,
+      weekStart: computedWeekStart,
+      source: sourceRaw,
+      status: statusRaw,
     },
     include: {
       student: { select: { id: true, username: true, fullName: true } },

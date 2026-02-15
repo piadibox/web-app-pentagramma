@@ -38,6 +38,7 @@ export default function AppHeader() {
   if (pathname === "/login") return null;
 
   const isLessons = pathname.startsWith("/lessons");
+  const isAvailability = pathname.startsWith("/availability");
 
   return (
     <header className="relative overflow-hidden border-b border-[#253040] bg-[#101721] text-[#fff8e9]">
@@ -90,8 +91,17 @@ export default function AppHeader() {
                   Lezioni di Strumento
                 </Link>
               </li>
-              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
-                Corsi Straordinari
+              <li>
+                <Link
+                  href="/availability"
+                  className={`font-condensed block rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] transition ${
+                    isAvailability
+                      ? "bg-[#bc4e31] text-[#fff8e9]"
+                      : "bg-transparent text-[#ead8bf] hover:bg-[#bc4e31]/30 hover:text-[#fff8e9]"
+                  }`}
+                >
+                  Disponibilita Docenti
+                </Link>
               </li>
               <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
                 Contatti
