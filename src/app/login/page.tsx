@@ -40,7 +40,8 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden px-4 py-8 md:px-6 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 rise-in">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(188,78,49,0.13)_0%,transparent_52%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.4)_0%,transparent_56%)]" />
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-3 rise-in">
         <div className="surface-dark overflow-hidden rounded-lg p-3">
           <div className="flex flex-wrap gap-1">
             <span className="bg-[#bc4e31] px-3 py-1.5 font-condensed text-xs uppercase tracking-[0.1em] text-[#fff8e9]">
