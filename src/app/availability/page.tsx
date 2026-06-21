@@ -183,9 +183,12 @@ export default function AvailabilityPage() {
   const grouped = useMemo(() => {
     return DAY_LABELS.map((label, idx) => ({
       label,
+      idx,
       rows: rows.filter((r) => r.weekday === idx),
     }));
   }, [rows]);
+
+  const todayIdx = useMemo(() => (new Date().getDay() + 6) % 7, []);
 
   if (loadingMe) {
     return (
@@ -225,12 +228,12 @@ export default function AvailabilityPage() {
             <label className="space-y-1 xl:col-span-2">
               <div className="font-condensed text-xs uppercase tracking-[0.12em] text-[#6f5c4c]">Docente</div>
               {isTeacher ? (
-                <div className="field-theme rounded-sm px-3 py-2 text-sm">{me?.userId}</div>
+                <div className="field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition">{me?.userId}</div>
               ) : (
                 <select
                   value={teacherId}
                   onChange={(e) => setTeacherId(e.target.value)}
-                  className="field-theme w-full rounded-sm px-3 py-2 text-sm"
+                  className="field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition"
                 >
                   {teachers.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -246,7 +249,7 @@ export default function AvailabilityPage() {
               <select
                 value={String(weekday)}
                 onChange={(e) => setWeekday(Number(e.target.value))}
-                className="field-theme w-full rounded-sm px-3 py-2 text-sm"
+                className="field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition"
               >
                 {DAY_LABELS.map((d, idx) => (
                   <option key={d} value={String(idx)}>
@@ -262,7 +265,7 @@ export default function AvailabilityPage() {
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="field-theme w-full rounded-sm px-3 py-2 text-sm"
+                className="field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition"
               />
             </label>
 
@@ -272,7 +275,7 @@ export default function AvailabilityPage() {
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="field-theme w-full rounded-sm px-3 py-2 text-sm"
+                className="field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition"
               />
             </label>
           </div>
@@ -292,31 +295,50 @@ export default function AvailabilityPage() {
             <div className="text-sm text-[#6f5c4c]">Caricamento...</div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {grouped.map((g) => (
-                <div key={g.label} className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-3">
-                  <div className="font-condensed text-xs uppercase tracking-[0.12em] text-[#6f5c4c]">{g.label}</div>
-                  {g.rows.length === 0 ? (
-                    <div className="mt-2 text-sm text-[#8a7765]">Nessuna fascia</div>
-                  ) : (
-                    <ul className="mt-2 space-y-2">
-                      {g.rows.map((r) => (
-                        <li key={r.id} className="flex items-center justify-between gap-2 rounded-md border border-[#e0c9ab] px-2 py-1.5">
-                          <span className="font-semibold text-sm">
-                            {r.startTime} - {r.endTime}
-                          </span>
-                          <button
-                            onClick={() => removeAvailability(r.id)}
-                            disabled={deletingId === r.id}
-                            className="btn-secondary rounded-sm px-2 py-1 font-condensed text-xs uppercase tracking-[0.08em]"
-                          >
-                            {deletingId === r.id ? "..." : "Rimuovi"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {grouped.map((g) => {
+                const isToday = g.idx === todayIdx;
+                return (
+                  <div
+                    key={g.label}
+                    className={`rounded-md border p-3 transition ${
+                      isToday ? "border-[#bc4e31] bg-[#fff2e0] shadow-sm" : "border-[#c6ad8e] bg-[#fff8e9]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div
+                        className={`font-condensed text-xs uppercase tracking-[0.12em] ${
+                          isToday ? "text-[#bc4e31]" : "text-[#6f5c4c]"
+                        }`}
+                      >
+                        {g.label}
+                      </div>
+                      <span className="rounded-full bg-[#f0e0c4] px-2 py-0.5 text-[10px] font-semibold text-[#6f5c4c]">
+                        {g.rows.length}
+                      </span>
+                    </div>
+                    {g.rows.length === 0 ? (
+                      <div className="mt-2 text-sm text-[#8a7765]">Nessuna fascia</div>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {g.rows.map((r) => (
+                          <li key={r.id} className="flex items-center justify-between gap-2 rounded-md border border-[#e0c9ab] px-2 py-1.5">
+                            <span className="font-semibold text-sm">
+                              {r.startTime} - {r.endTime}
+                            </span>
+                            <button
+                              onClick={() => removeAvailability(r.id)}
+                              disabled={deletingId === r.id}
+                              className="btn-secondary rounded-sm px-2 py-1 font-condensed text-xs uppercase tracking-[0.08em]"
+                            >
+                              {deletingId === r.id ? "..." : "Rimuovi"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
