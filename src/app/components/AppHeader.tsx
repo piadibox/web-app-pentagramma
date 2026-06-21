@@ -45,7 +45,7 @@ export default function AppHeader() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(188,78,49,0.45),transparent_45%),radial-gradient(circle_at_82%_78%,rgba(32,46,66,0.7),transparent_48%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,18,26,0.7),rgba(14,18,26,0.2)_45%,rgba(188,78,49,0.4))]" />
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:py-6">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 md:gap-5 md:py-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="rise-in space-y-1">
             <p className="font-condensed text-xs uppercase tracking-[0.25em] text-[#f5d8b8]">Scuola di Musica</p>
@@ -64,8 +64,8 @@ export default function AppHeader() {
                 <div className="text-[#fff8e9]">{me.userId}</div>
               </div>
             ) : null}
-            <div className="grid h-20 w-20 place-items-center rounded-full border-4 border-[#bc4e31] bg-[#f6e8cf] text-[#bc4e31] shadow-[0_14px_30px_-18px_rgba(8,12,16,0.9)]">
-              <span className="font-display text-4xl font-bold leading-none">P</span>
+            <div className="grid h-16 w-16 place-items-center rounded-full border-4 border-[#bc4e31] bg-[#f6e8cf] text-[#bc4e31] shadow-[0_14px_30px_-18px_rgba(8,12,16,0.9)] sm:h-20 sm:w-20">
+              <span className="font-display text-3xl font-bold leading-none sm:text-4xl">P</span>
             </div>
           </div>
         </div>
@@ -73,11 +73,23 @@ export default function AppHeader() {
         <div className="rise-in flex flex-wrap items-center justify-between gap-3">
           <nav className="overflow-x-auto">
             <ul className="flex min-w-max items-center gap-1 rounded-md bg-[#0f141d]/70 p-1">
-              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+              <li
+                aria-disabled="true"
+                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
+              >
                 Eventi e News
+                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
+                  presto
+                </span>
               </li>
-              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+              <li
+                aria-disabled="true"
+                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
+              >
                 Iscrizioni
+                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
+                  presto
+                </span>
               </li>
               <li>
                 <Link
@@ -103,8 +115,14 @@ export default function AppHeader() {
                   Disponibilita Docenti
                 </Link>
               </li>
-              <li className="font-condensed rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/80">
+              <li
+                aria-disabled="true"
+                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
+              >
                 Contatti
+                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
+                  presto
+                </span>
               </li>
             </ul>
           </nav>
