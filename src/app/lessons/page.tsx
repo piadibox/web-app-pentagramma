@@ -305,11 +305,18 @@ export default function LessonsPage() {
 
         <div>
           <section className="surface-paper overflow-hidden rounded-lg">
-            <div className="border-b border-[#c6ad8e] bg-[#fff8e9] px-4 py-3">
+            <div className="space-y-3 border-b border-[#c6ad8e] bg-[#fff8e9] px-4 py-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="font-heading text-2xl font-semibold uppercase text-[#1d1712]">Tabella lezioni</h2>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Filtra… (studente, insegnante, strumento)"
+                    className={filterCls}
+                  />
+
                   <label className="flex items-center gap-2 text-sm text-[#6f5c4c]">
                     <input
                       type="checkbox"
@@ -320,61 +327,61 @@ export default function LessonsPage() {
                     Nascondi annullate
                   </label>
 
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Filtra… (studente, insegnante, strumento)"
-                    className={filterCls}
-                  />
-
-                  <select
-                    value={teacherFilter}
-                    onChange={(e) => setTeacherFilter(e.target.value)}
-                    className={filterCls}
-                    disabled={!!lookupError}
-                  >
-                    <option value="">Tutti docenti</option>
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.fullName ?? t.username}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={studentFilter}
-                    onChange={(e) => setStudentFilter(e.target.value)}
-                    className={filterCls}
-                    disabled={!!lookupError}
-                  >
-                    <option value="">Tutti studenti</option>
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.fullName ?? s.username}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={instrumentFilter}
-                    onChange={(e) => setInstrumentFilter(e.target.value)}
-                    className={filterCls}
-                    disabled={!!lookupError}
-                  >
-                    <option value="">Tutti strumenti</option>
-                    {instruments.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="text-sm text-[#6f5c4c]">
+                  <div className="text-sm text-[#6f5c4c] sm:text-right">
                     Mostrate: <span className="font-semibold text-[#1d1712]">{visibleLessons.length}</span> /{" "}
                     {lessons.length}
                   </div>
                 </div>
               </div>
+
+              <div className="flex flex-col gap-2 border-t border-[#e3d2b4] pt-3 sm:flex-row sm:items-center sm:gap-3">
+                <span className="font-condensed shrink-0 text-xs uppercase tracking-[0.12em] text-[#9c8568]">
+                  Filtra per
+                </span>
+
+                <select
+                  value={teacherFilter}
+                  onChange={(e) => setTeacherFilter(e.target.value)}
+                  className={filterCls}
+                  disabled={!!lookupError}
+                >
+                  <option value="">Tutti docenti</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.fullName ?? t.username}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                  className={filterCls}
+                  disabled={!!lookupError}
+                >
+                  <option value="">Tutti studenti</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.fullName ?? s.username}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={instrumentFilter}
+                  onChange={(e) => setInstrumentFilter(e.target.value)}
+                  className={filterCls}
+                  disabled={!!lookupError}
+                >
+                  <option value="">Tutti strumenti</option>
+                  {instruments.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {lookupError ? <div className="text-xs text-[#bc4e31]">Filtri avanzati non disponibili.</div> : null}
             </div>
 
@@ -408,13 +415,15 @@ export default function LessonsPage() {
                       return (
                         <li
                           key={l.id}
-                          className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-4 shadow-sm transition-shadow hover:shadow-md"
+                          className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-4 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-[#bc4e31]/50 hover:shadow-md"
                         >
                           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1.6fr_1fr] lg:items-center">
                             <div className="space-y-1">
                               <div className="font-condensed text-sm uppercase tracking-[0.08em] text-[#bc4e31]">{dateLabel}</div>
                               <div className="font-heading text-lg font-semibold text-[#1d1712]">{timeLabel}</div>
-                              <div className="text-xs text-[#7e6d5f] font-mono">{l.id}</div>
+                              <div className="max-w-[9rem] truncate font-mono text-[10px] text-[#a8967f]" title={l.id}>
+                                {l.id}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
