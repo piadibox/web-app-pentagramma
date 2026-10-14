@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiError } from "@/lib/labels";
+
+// Italian school years start in September: Oct 2026 -> 2026/27.
+function schoolYearLabel(d = new Date()) {
+  const start = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${start}-${String(start + 1).slice(-2)}`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,98 +32,112 @@ export default function LoginPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setError(data?.error ?? "Login fallito");
+        setError(apiError(data, res.status));
         return;
       }
 
       router.replace("/lessons");
       router.refresh();
     } catch {
-      setError("Errore di rete");
+      setError("Connessione non riuscita. Controlla la rete e riprova.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 md:px-6 md:py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(188,78,49,0.13)_0%,transparent_52%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.4)_0%,transparent_56%)]" />
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-3 rise-in">
-        <div className="surface-dark overflow-hidden rounded-lg p-3">
-          <div className="flex flex-wrap gap-1">
-            <span className="bg-[#bc4e31] px-3 py-1.5 font-condensed text-xs uppercase tracking-[0.1em] text-[#fff8e9]">
-              Eventi e News
-            </span>
-            <span className="px-3 py-1.5 font-condensed text-xs uppercase tracking-[0.1em] text-[#e6d6bf]">Iscrizioni</span>
-            <span className="px-3 py-1.5 font-condensed text-xs uppercase tracking-[0.1em] text-[#e6d6bf]">
-              Lezioni di Strumento
-            </span>
-          </div>
-        </div>
+    <main className="relative flex min-h-screen items-center overflow-hidden px-4 py-8 md:px-6 md:py-12">
+      <div className="page-glow" />
+      <div className="rise-in relative mx-auto grid w-full min-w-0 max-w-5xl overflow-hidden rounded-lg border border-[#b99d79] bg-paper-soft shadow-[0_28px_56px_-34px_rgba(26,17,11,0.55)] md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <section className="relative overflow-hidden border-b border-[#b99d79] bg-terracotta p-6 text-cream sm:p-7 md:border-b-0 md:border-r md:p-10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_14%,rgba(255,248,233,0.24),transparent_46%),radial-gradient(circle_at_84%_80%,rgba(27,18,12,0.25),transparent_54%)]" />
+          {/* Staff lines: a quiet nod to the school's name. */}
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-28 right-0 hidden h-20 w-2/3 text-cream/15 md:block"
+            viewBox="0 0 400 96"
+            preserveAspectRatio="none"
+          >
+            {[8, 28, 48, 68, 88].map((y) => (
+              <line key={y} x1="0" x2="400" y1={y} y2={y} stroke="currentColor" strokeWidth="1.5" />
+            ))}
+          </svg>
 
-        <div className="grid overflow-hidden rounded-lg border border-[#b99d79] bg-[#f7efdf] shadow-[0_28px_56px_-34px_rgba(26,17,11,0.55)] md:grid-cols-[1.1fr_0.9fr]">
-          <section className="relative overflow-hidden border-b border-[#b99d79] bg-[#bc4e31] p-7 text-[#fff8e9] md:border-b-0 md:border-r">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_14%,rgba(255,248,233,0.24),transparent_46%),radial-gradient(circle_at_84%_80%,rgba(27,18,12,0.25),transparent_54%)]" />
-            <div className="relative space-y-4">
-              <div className="font-condensed text-xs uppercase tracking-[0.28em] text-[#f9dcc0]">A.S. 2025-26</div>
-              <h1 className="font-display text-5xl font-bold uppercase leading-[0.92] sm:text-6xl">Pentagramma</h1>
-              <p className="max-w-lg text-base text-[#fff1de]">
-                Scuola di musica con anima jazz: gestione lezioni, studenti e docenti in una dashboard chiara e pronta
-                alla presentazione.
-              </p>
-              <div className="inline-flex items-center gap-3 rounded-sm border border-[#f7d8b8]/35 bg-[#1a1210]/18 px-4 py-2">
+          <div className="relative flex h-full flex-col gap-6">
+            <h1 className="font-display text-[clamp(2rem,9vw,3.25rem)] font-bold uppercase leading-[0.92] md:text-5xl xl:text-[3.5rem]">Pentagramma</h1>
+            <p className="max-w-md text-base text-[#fff1de]">
+              Scuola di musica con anima jazz. Qui docenti e segreteria gestiscono lezioni, orari e disponibilità.
+            </p>
+            <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-6 text-[#ffe9cf]">
+              <span className="flex items-baseline gap-2">
                 <span className="font-display text-4xl leading-none">40</span>
-                <span className="font-condensed text-xs uppercase tracking-[0.12em] text-[#ffe9cf]">Anni di attivita</span>
-              </div>
+                <span className="font-condensed text-xs uppercase tracking-[0.12em]">anni di attività</span>
+              </span>
+              <span aria-hidden="true" className="hidden h-6 w-px bg-cream/30 sm:block" />
+              <span className="font-condensed text-xs uppercase tracking-[0.12em]">
+                Anno scolastico <span className="tabular">{schoolYearLabel()}</span>
+              </span>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="surface-dark p-7">
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <p className="font-condensed text-xs uppercase tracking-[0.2em] text-[#f3dfc3]">Accesso riservato</p>
-                <h2 className="font-heading text-3xl font-semibold uppercase text-[#fff8e9]">Accedi al gestionale</h2>
-              </div>
+        <section className="surface-dark rounded-none border-0 p-6 sm:p-7 md:p-10">
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <h2 className="font-heading text-3xl font-semibold text-cream">Accedi</h2>
+              <p className="text-sm text-[#d9c5a8]">Area riservata a docenti e segreteria.</p>
+            </div>
 
-              <form onSubmit={onSubmit} className="space-y-4">
-                <label className="grid gap-2">
-                  <span className="font-condensed text-xs uppercase tracking-[0.14em] text-[#f3dfc3]">Username</span>
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    className="field-theme rounded-sm px-3 py-2.5 text-sm"
-                  />
-                </label>
+            <form onSubmit={onSubmit} className="space-y-4" noValidate>
+              <label className="grid gap-2">
+                <span className="font-condensed text-xs uppercase tracking-[0.14em] text-sand">Nome utente</span>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoFocus
+                  required
+                  aria-invalid={!!error}
+                  className="field-theme rounded-sm px-3 py-2.5 text-base sm:text-sm"
+                />
+              </label>
 
-                <label className="grid gap-2">
-                  <span className="font-condensed text-xs uppercase tracking-[0.14em] text-[#f3dfc3]">Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    className="field-theme rounded-sm px-3 py-2.5 text-sm"
-                  />
-                </label>
+              <label className="grid gap-2">
+                <span className="font-condensed text-xs uppercase tracking-[0.14em] text-sand">Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "login-error" : undefined}
+                  className="field-theme rounded-sm px-3 py-2.5 text-base sm:text-sm"
+                />
+              </label>
 
-                {error ? (
-                  <div className="rounded-sm border border-[#bc4e31]/70 bg-[#2a1a17] px-3 py-2 text-sm text-[#ffd8c6]">
-                    {error}
-                  </div>
-                ) : null}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary w-full rounded-sm px-4 py-2.5 font-condensed text-sm uppercase tracking-[0.1em] disabled:opacity-60"
+              {error ? (
+                <div
+                  id="login-error"
+                  role="alert"
+                  className="rounded-sm border border-terracotta/70 bg-[#2a1a17] px-3 py-2 text-sm text-[#ffd8c6]"
                 >
-                  {loading ? "Accesso..." : "Accedi"}
-                </button>
-              </form>
-            </div>
-          </section>
-        </div>
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full rounded-sm px-4 py-2.5 font-condensed text-sm uppercase tracking-[0.1em]"
+              >
+                {loading ? "Accesso in corso…" : "Accedi"}
+              </button>
+            </form>
+          </div>
+        </section>
       </div>
     </main>
   );

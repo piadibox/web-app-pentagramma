@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import CreateLessonButton from "./CreateLessonButton";
 import { useToast } from "../components/ToastProvider";
+import { apiError, personName, statusLabel } from "@/lib/labels";
 
 type LessonRow = {
   id: string;
@@ -40,10 +41,53 @@ function addMinutesISO(iso: string, minutes: number) {
   return d.toISOString();
 }
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// "13 – 19 ottobre 2026" or "27 ottobre – 2 novembre 2026"
+function weekRangeLabel(weekStartISO: string) {
+  const start = new Date(weekStartISO);
+  const end = new Date(addDaysUTC(weekStartISO, 6));
+  const sameMonth = start.getUTCMonth() === end.getUTCMonth();
+  const startLabel = start.toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: sameMonth ? undefined : "long",
+    timeZone: "UTC",
+  });
+  const endLabel = end.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  return `${startLabel} – ${endLabel}`;
+}
+
+function clock(iso: string) {
+  return new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+}
+
+function dayLabel(iso: string) {
+  return capitalize(new Date(iso).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" }));
+}
+
+function minutesBetween(a: string, b: string) {
+  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
+}
+
 function badgeClass(status: string) {
-  if (status === "CANCELLED") return "bg-[#BC4E31] text-[#FAFAFA] ring-[#BC4E31]";
-  if (status === "SCHEDULED") return "bg-[#2D3950] text-[#FAFAFA] ring-[#2D3950]";
-  return "bg-[#362923] text-[#FAFAFA] ring-[#362923]";
+  if (status === "CANCELLED") return "bg-terracotta/10 text-terracotta-dark ring-terracotta/40";
+  if (status === "DONE") return "bg-sage/10 text-sage ring-sage/40";
+  if (status === "MOVED") return "bg-ink/5 text-ink ring-ink/25";
+  return "bg-slate/10 text-slate ring-slate/35";
+}
+
+function ChevronIcon({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path
+        d={dir === "left" ? "M10 3.5 5.5 8l4.5 4.5" : "M6 3.5 10.5 8 6 12.5"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export default function LessonsPage() {
@@ -51,8 +95,7 @@ export default function LessonsPage() {
   const pathname = usePathname();
   const [weekStart, setWeekStart] = useState(() => toISOWeekStartUTC(new Date()));
 
-  const [status, setStatus] = useState<number | null>(null);
-  const [json, setJson] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -70,18 +113,13 @@ export default function LessonsPage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const confirmBackRef = useRef<HTMLButtonElement>(null);
 
   const { pushToast } = useToast();
 
-  const weekLabelLong = useMemo(() => {
-    const d = new Date(weekStart);
-    return d.toLocaleDateString("it-IT", { dateStyle: "full" });
-  }, [weekStart]);
-
-  const weekLabelShort = useMemo(() => {
-    const d = new Date(weekStart);
-    return d.toLocaleDateString("it-IT", { dateStyle: "medium" });
-  }, [weekStart]);
+  const weekRange = useMemo(() => weekRangeLabel(weekStart), [weekStart]);
+  const isCurrentWeek = weekStart === toISOWeekStartUTC(new Date());
+  const todayKey = new Date().toDateString();
 
   const visibleLessons = useMemo(() => {
     const base = hideCancelled ? lessons.filter((l) => l.status !== "CANCELLED") : lessons;
@@ -96,9 +134,7 @@ export default function LessonsPage() {
             l.teacher?.fullName,
             l.teacher?.username,
             l.instrument?.name,
-            l.status,
-            l.source,
-            l.id,
+            statusLabel(l.status),
           ]
             .filter(Boolean)
             .join(" ")
@@ -115,6 +151,26 @@ export default function LessonsPage() {
     });
   }, [lessons, hideCancelled, q, teacherFilter, studentFilter, instrumentFilter]);
 
+  const lessonsByDay = useMemo(() => {
+    const groups: { key: string; label: string; lessons: LessonRow[] }[] = [];
+    for (const l of visibleLessons) {
+      const key = new Date(l.startsAt).toDateString();
+      const last = groups[groups.length - 1];
+      if (last?.key === key) last.lessons.push(l);
+      else groups.push({ key, label: dayLabel(l.startsAt), lessons: [l] });
+    }
+    return groups;
+  }, [visibleLessons]);
+
+  const hasFilters = !!(q.trim() || teacherFilter || studentFilter || instrumentFilter);
+
+  function resetFilters() {
+    setQ("");
+    setTeacherFilter("");
+    setStudentFilter("");
+    setInstrumentFilter("");
+  }
+
   async function load(ws = weekStart) {
     setLoading(true);
     try {
@@ -129,9 +185,10 @@ export default function LessonsPage() {
       }
 
       const data = await res.json().catch(() => ({}));
-      setStatus(res.status);
-      setJson(data);
+      setLoadError(res.ok ? null : apiError(data, res.status));
       setLessons(Array.isArray(data?.lessons) ? data.lessons : []);
+    } catch {
+      setLoadError("Connessione non disponibile");
     } finally {
       setLoading(false);
     }
@@ -181,7 +238,7 @@ export default function LessonsPage() {
           return;
         }
         if (!ok) {
-          setLookupError(data?.error ?? "Errore lookups");
+          setLookupError(apiError(data, status));
           return;
         }
         setStudents(Array.isArray(data?.students) ? data.students : []);
@@ -197,6 +254,16 @@ export default function LessonsPage() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!confirmId) return;
+    confirmBackRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfirmId(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmId]);
+
   async function cancelLesson(id: string) {
     setBusyId(id);
     try {
@@ -206,7 +273,7 @@ export default function LessonsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        pushToast(data?.error ?? `HTTP ${res.status}`, "error");
+        pushToast(apiError(data, res.status), "error");
         return;
       }
       pushToast("Lezione annullata", "success");
@@ -235,300 +302,374 @@ export default function LessonsPage() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        pushToast(data?.error ?? `HTTP ${res.status}`, "error");
+        pushToast(apiError(data, res.status), "error");
         return;
       }
-      pushToast("Lezione spostata", "success");
+      pushToast(`Lezione posticipata di ${minutes} minuti`, "success");
       await load();
     } finally {
       setBusyId(null);
     }
   }
 
-  const selectCls =
-    "field-theme rounded-sm px-3 py-2 text-sm shadow-sm transition";
-
-  const filterCls =
-    "field-theme w-full sm:w-56 rounded-sm px-3 py-2 text-sm shadow-sm transition";
+  const filterCls = "field-theme w-full rounded-sm px-3 py-2 text-sm sm:w-52";
 
   const btnCls =
-    "btn-secondary rounded-sm px-3 py-2 font-condensed text-sm uppercase tracking-[0.08em] shadow-sm disabled:opacity-50";
+    "btn-secondary inline-flex items-center justify-center gap-1.5 rounded-sm px-3 py-2 font-condensed text-sm uppercase tracking-[0.08em]";
 
   const confirmLesson = confirmId ? lessons.find((l) => l.id === confirmId) : null;
 
-  if (loading && !lessons.length) {
-    return (
-      <main className="relative min-h-screen overflow-hidden text-[#1d1712] leading-relaxed">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(188,78,49,0.13)_0%,transparent_52%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.4)_0%,transparent_56%)]" />
-        <div className="relative mx-auto max-w-7xl px-4 py-6">
-          <div className="surface-paper rounded-lg p-4 text-sm text-[#1d1712]">
-            Caricamento…
-          </div>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="relative min-h-screen overflow-hidden text-[#1d1712] leading-relaxed">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(188,78,49,0.13)_0%,transparent_52%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.4)_0%,transparent_56%)]" />
-      <div className="relative mx-auto max-w-7xl px-4 py-5 space-y-6">
-        <header className="surface-paper rise-in rounded-lg p-4 backdrop-blur flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="font-condensed text-xs uppercase tracking-[0.22em] text-[#7d6652]">Eventi e News</p>
-            <h1 className="font-display text-4xl font-bold uppercase tracking-[0.03em] text-[#bc4e31] sm:text-5xl">
+    <main className="relative min-h-screen overflow-hidden leading-relaxed text-ink">
+      <div className="page-glow" />
+      <div className="relative mx-auto max-w-7xl space-y-6 px-4 py-6 md:py-8">
+        <header className="rise-in flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-[0.02em] text-terracotta sm:text-5xl">
               Lezioni
             </h1>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <div className="text-sm text-[#6f5c4c]">
-                Settimana: <span className="font-semibold text-[#1d1712]">{weekLabelLong}</span>{" "}
-                <span className="text-[#ad8f6d]">•</span>{" "}
-                <span>
-                  API: <span className="font-semibold text-[#1d1712]">{status ?? "…"}</span>
-                </span>
-              </div>
+            <p className="mt-2 text-base text-muted">
+              Settimana <span className="tabular font-semibold text-ink">{weekRange}</span>
+            </p>
+          </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))} className={btnCls}>
-                  ← Prev
-                </button>
-                <button onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))} className={btnCls}>
-                  Oggi
-                </button>
-                <button onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))} className={btnCls}>
-                  Next →
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5" role="group" aria-label="Cambia settimana">
+            <button
+              onClick={() => setWeekStart((ws) => addDaysUTC(ws, -7))}
+              className={`${btnCls} px-2.5`}
+              aria-label="Settimana precedente"
+            >
+              <ChevronIcon dir="left" />
+            </button>
+            <button
+              onClick={() => setWeekStart(toISOWeekStartUTC(new Date()))}
+              className={btnCls}
+              disabled={isCurrentWeek}
+            >
+              Questa settimana
+            </button>
+            <button
+              onClick={() => setWeekStart((ws) => addDaysUTC(ws, 7))}
+              className={`${btnCls} px-2.5`}
+              aria-label="Settimana successiva"
+            >
+              <ChevronIcon dir="right" />
+            </button>
           </div>
         </header>
 
-        <div>
-          <section className="surface-paper overflow-hidden rounded-lg">
-            <div className="space-y-3 border-b border-[#c6ad8e] bg-[#fff8e9] px-4 py-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="font-heading text-2xl font-semibold uppercase text-[#1d1712]">Tabella lezioni</h2>
+        <section className="surface-paper overflow-hidden rounded-lg" aria-labelledby="lessons-list-title">
+          <h2 id="lessons-list-title" className="sr-only">
+            Elenco lezioni
+          </h2>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Filtra… (studente, insegnante, strumento)"
-                    className={filterCls}
-                  />
+          <div className="space-y-3 border-b border-line bg-cream px-4 py-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label className="relative block sm:w-80">
+                <span className="sr-only">Cerca</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 16 16"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                >
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+                </svg>
+                <input
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Cerca studente, docente, strumento"
+                  className="field-theme w-full rounded-sm py-2 pl-9 pr-3 text-sm"
+                />
+              </label>
 
-                  <label className="flex items-center gap-2 text-sm text-[#6f5c4c]">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-[#bc4e31]"
-                      checked={hideCancelled}
-                      onChange={(e) => setHideCancelled(e.target.checked)}
-                    />
-                    Nascondi annullate
-                  </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-terracotta"
+                  checked={hideCancelled}
+                  onChange={(e) => setHideCancelled(e.target.checked)}
+                />
+                Nascondi annullate
+              </label>
 
-                  <div className="text-sm text-[#6f5c4c] sm:text-right">
-                    Mostrate: <span className="font-semibold text-[#1d1712]">{visibleLessons.length}</span> /{" "}
-                    {lessons.length}
-                  </div>
-                </div>
+              <div className="text-sm text-muted sm:ml-auto" aria-live="polite">
+                {loading ? (
+                  "Caricamento…"
+                ) : (
+                  <>
+                    <span className="tabular font-semibold text-ink">{visibleLessons.length}</span>
+                    {visibleLessons.length !== lessons.length ? (
+                      <span className="tabular"> di {lessons.length}</span>
+                    ) : null}{" "}
+                    {lessons.length === 1 ? "lezione" : "lezioni"}
+                  </>
+                )}
               </div>
-
-              <div className="flex flex-col gap-2 border-t border-[#e3d2b4] pt-3 sm:flex-row sm:items-center sm:gap-3">
-                <span className="font-condensed shrink-0 text-xs uppercase tracking-[0.12em] text-[#9c8568]">
-                  Filtra per
-                </span>
-
-                <select
-                  value={teacherFilter}
-                  onChange={(e) => setTeacherFilter(e.target.value)}
-                  className={filterCls}
-                  disabled={!!lookupError}
-                >
-                  <option value="">Tutti docenti</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.fullName ?? t.username}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={studentFilter}
-                  onChange={(e) => setStudentFilter(e.target.value)}
-                  className={filterCls}
-                  disabled={!!lookupError}
-                >
-                  <option value="">Tutti studenti</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.fullName ?? s.username}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={instrumentFilter}
-                  onChange={(e) => setInstrumentFilter(e.target.value)}
-                  className={filterCls}
-                  disabled={!!lookupError}
-                >
-                  <option value="">Tutti strumenti</option>
-                  {instruments.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {lookupError ? <div className="text-xs text-[#bc4e31]">Filtri avanzati non disponibili.</div> : null}
             </div>
 
-            <div className="p-4">
-              {loading ? (
-                <div className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-3 text-sm text-[#1d1712]">Caricamento…</div>
-              ) : status !== 200 ? (
-                <div className="rounded-md border border-[#bc4e31] bg-[#fff1df] p-4 text-sm text-[#6f2617]">
-                  <pre className="whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre>
-                </div>
-              ) : visibleLessons.length === 0 ? (
-                <div className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-3 text-sm text-[#1d1712]">
-                  Nessuna lezione trovata.
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                    {visibleLessons.map((l) => {
-                      const isCancelled = l.status === "CANCELLED";
-                      const isBusy = busyId === l.id;
-                      const shift = shiftById[l.id] ?? 60;
+            <div className="flex flex-col gap-2 border-t border-line-soft pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <span className="font-condensed shrink-0 text-xs uppercase tracking-[0.12em] text-muted">Filtra per</span>
 
-                      const student = l.student?.fullName ?? l.student?.username ?? "-";
-                      const teacher = l.teacher?.fullName ?? l.teacher?.username ?? "-";
-                      const instr = l.instrument?.name ?? "-";
+              <select
+                value={teacherFilter}
+                onChange={(e) => setTeacherFilter(e.target.value)}
+                className={filterCls}
+                disabled={!!lookupError}
+                aria-label="Docente"
+              >
+                <option value="">Tutti i docenti</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.fullName ?? t.username}
+                  </option>
+                ))}
+              </select>
 
-                      const dateLabel = new Date(l.startsAt).toLocaleDateString("it-IT", { dateStyle: "full" });
-                      const timeLabel = `${new Date(l.startsAt).toLocaleTimeString("it-IT", {
-                        timeStyle: "short",
-                      })} → ${new Date(l.endsAt).toLocaleTimeString("it-IT", { timeStyle: "short" })}`;
+              <select
+                value={studentFilter}
+                onChange={(e) => setStudentFilter(e.target.value)}
+                className={filterCls}
+                disabled={!!lookupError}
+                aria-label="Studente"
+              >
+                <option value="">Tutti gli studenti</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.fullName ?? s.username}
+                  </option>
+                ))}
+              </select>
 
-                      return (
-                        <li
-                          key={l.id}
-                          className="rounded-md border border-[#c6ad8e] bg-[#fff8e9] p-4 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-[#bc4e31]/50 hover:shadow-md"
-                        >
-                          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1.6fr_1fr] lg:items-center">
-                            <div className="space-y-1">
-                              <div className="font-condensed text-sm uppercase tracking-[0.08em] text-[#bc4e31]">{dateLabel}</div>
-                              <div className="font-heading text-lg font-semibold text-[#1d1712]">{timeLabel}</div>
-                              <div className="max-w-[9rem] truncate font-mono text-[10px] text-[#a8967f]" title={l.id}>
-                                {l.id}
-                              </div>
-                            </div>
+              <select
+                value={instrumentFilter}
+                onChange={(e) => setInstrumentFilter(e.target.value)}
+                className={filterCls}
+                disabled={!!lookupError}
+                aria-label="Strumento"
+              >
+                <option value="">Tutti gli strumenti</option>
+                {instruments.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
 
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                              <div className="rounded-md border border-[#c6ad8e] bg-[#f4e7d1] px-3 py-2">
-                                <div className="font-condensed text-xs uppercase tracking-[0.09em] text-[#6f5c4c]">
-                                  Studente
-                                </div>
-                                <div className="text-sm font-semibold text-[#1d1712]">{student}</div>
-                              </div>
-                              <div className="rounded-md border border-[#c6ad8e] bg-[#f4e7d1] px-3 py-2">
-                                <div className="font-condensed text-xs uppercase tracking-[0.09em] text-[#6f5c4c]">
-                                  Insegnante
-                                </div>
-                                <div className="text-sm font-semibold text-[#1d1712]">{teacher}</div>
-                              </div>
-                              <div className="rounded-md border border-[#c6ad8e] bg-[#f4e7d1] px-3 py-2">
-                                <div className="font-condensed text-xs uppercase tracking-[0.09em] text-[#6f5c4c]">
-                                  Strumento
-                                </div>
-                                <div className="text-sm font-semibold text-[#1d1712]">{instr}</div>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-3 lg:items-end">
-                              <span
-                                className={`inline-flex items-center self-start rounded-md px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeClass(
-                                  l.status
-                                )}`}
-                              >
-                                {l.status}
-                              </span>
-
-                              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
-                                  <select
-                                    value={String(shift)}
-                                    onChange={(e) =>
-                                      setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
-                                    }
-                                    disabled={isCancelled || isBusy}
-                                    className={`${selectCls} w-full sm:w-auto`}
-                                  >
-                                    <option value="15">+15 min</option>
-                                    <option value="30">+30 min</option>
-                                    <option value="60">+60 min</option>
-                                    <option value="90">+90 min</option>
-                                  </select>
-
-                                  <button
-                                    onClick={() => applyShift(l)}
-                                    disabled={isCancelled || isBusy}
-                                    className={`${btnCls} w-full sm:w-auto`}
-                                  >
-                                    {isBusy ? "…" : "Posticipa"}
-                                  </button>
-                                </div>
-
-                                <button
-                                  onClick={() => setConfirmId(l.id)}
-                                  disabled={isCancelled || isBusy}
-                                  className={`${btnCls} w-full sm:w-auto`}
-                                >
-                                  {isBusy ? "…" : "Annulla lezione"}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                </ul>
-              )}
-            </div>
-          </section>
-
-          <section className="mt-10 md:mt-14 surface-dark overflow-hidden rounded-lg">
-            <div className="border-b border-[#f1debf]/20 bg-[#0f141d] px-4 py-3">
-              <h2 className="font-heading text-2xl font-semibold uppercase text-[#fff8e9]">
-                Crea lezione <span className="font-normal text-[#d9c5a8]">(Settimana dal {weekLabelShort})</span>
-                </h2>
-              </div>
-
-              <div className="p-4">
-                <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
-              </div>
-            </section>
-        </div>
-      </div>
-
-      {confirmId ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#1d1712]/55 px-4">
-          <div className="surface-paper w-full max-w-md rounded-lg p-5">
-            <div className="font-heading text-lg font-semibold uppercase text-[#1d1712]">Conferma annullamento</div>
-            <div className="mt-2 text-sm text-[#6f5c4c]">
-              Vuoi annullare questa lezione?
-              {confirmLesson ? (
-                <div className="mt-2 rounded-md border border-[#c6ad8e] bg-[#f4e7d1] px-3 py-2 text-xs text-[#1d1712]">
-                  {new Date(confirmLesson.startsAt).toLocaleString("it-IT")} →{" "}
-                  {new Date(confirmLesson.endsAt).toLocaleTimeString("it-IT")}
-                </div>
+              {hasFilters ? (
+                <button
+                  onClick={resetFilters}
+                  className="self-start rounded-sm px-1 text-sm text-terracotta-dark underline decoration-terracotta/40 underline-offset-4 transition-colors hover:decoration-terracotta sm:self-auto"
+                >
+                  Azzera filtri
+                </button>
               ) : null}
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setConfirmId(null)} className={btnCls}>
+            {lookupError ? (
+              <p className="text-xs text-terracotta-dark">
+                I filtri per docente, studente e strumento non sono disponibili al momento.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="p-4">
+            {loading && !lessons.length ? (
+              <div className="space-y-3" aria-hidden="true">
+                <div className="skeleton h-4 w-40 rounded-sm" />
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="skeleton h-16 rounded-md" />
+                ))}
+              </div>
+            ) : loadError ? (
+              <div role="alert" className="rounded-md border border-terracotta/60 bg-[#fff1df] p-4 text-sm text-[#6f2617]">
+                <p className="font-semibold">Non è stato possibile caricare le lezioni.</p>
+                <p className="mt-1 text-[#8b321e]">{loadError}</p>
+                <button onClick={() => load()} className={`${btnCls} mt-3`}>
+                  Riprova
+                </button>
+              </div>
+            ) : visibleLessons.length === 0 ? (
+              <div className="rounded-md border border-dashed border-line px-4 py-10 text-center">
+                <p className="font-heading text-xl font-semibold text-ink">
+                  {lessons.length === 0 ? "Nessuna lezione in questa settimana" : "Nessuna lezione corrisponde ai filtri"}
+                </p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+                  {lessons.length === 0
+                    ? "Puoi crearne una dal modulo qui sotto, oppure spostarti su un'altra settimana."
+                    : hasFilters
+                      ? "Prova a cambiare la ricerca o azzera i filtri."
+                      : "Le lezioni di questa settimana sono tutte annullate."}
+                </p>
+                {lessons.length > 0 && hasFilters ? (
+                  <button onClick={resetFilters} className={`${btnCls} mt-4`}>
+                    Azzera filtri
+                  </button>
+                ) : null}
+                {lessons.length > 0 && !hasFilters && hideCancelled ? (
+                  <button onClick={() => setHideCancelled(false)} className={`${btnCls} mt-4`}>
+                    Mostra annullate
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className={`space-y-6 transition-opacity duration-200 ${loading ? "opacity-60" : ""}`}>
+                {lessonsByDay.map((group) => {
+                  const isToday = group.key === todayKey;
+                  return (
+                    <section key={group.key} aria-label={group.label}>
+                      <h3 className="mb-2 flex items-baseline gap-2 border-b border-line-soft pb-1.5">
+                        <span className={`font-heading text-xl font-semibold ${isToday ? "text-terracotta" : "text-ink"}`}>
+                          {group.label}
+                        </span>
+                        {isToday ? (
+                          <span className="font-condensed text-xs uppercase tracking-[0.12em] text-terracotta">Oggi</span>
+                        ) : null}
+                        <span className="tabular ml-auto text-xs text-muted">
+                          {group.lessons.length} {group.lessons.length === 1 ? "lezione" : "lezioni"}
+                        </span>
+                      </h3>
+
+                      <ul className="divide-y divide-line-soft">
+                        {group.lessons.map((l) => {
+                          const isCancelled = l.status === "CANCELLED";
+                          const isBusy = busyId === l.id;
+                          const shift = shiftById[l.id] ?? 60;
+
+                          return (
+                            <li
+                              key={l.id}
+                              className={`-mx-2 grid grid-cols-[4.5rem_1fr] items-center gap-x-4 gap-y-3 rounded-md px-2 py-3 transition-colors duration-150 hover:bg-cream/80 md:grid-cols-[5.5rem_1fr_auto_auto] ${
+                                isCancelled ? "text-muted" : ""
+                              }`}
+                            >
+                              <div className="tabular leading-tight">
+                                <div
+                                  className={`font-heading text-xl font-semibold ${
+                                    isCancelled ? "text-muted line-through decoration-terracotta/60" : "text-ink"
+                                  }`}
+                                >
+                                  {clock(l.startsAt)}
+                                </div>
+                                <div className="text-xs text-muted">
+                                  {clock(l.endsAt)} · {minutesBetween(l.startsAt, l.endsAt)}′
+                                </div>
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className={`truncate font-semibold ${isCancelled ? "text-muted" : "text-ink"}`}>
+                                  {personName(l.student)}
+                                </div>
+                                <div className="truncate text-sm text-muted">
+                                  {l.instrument?.name ?? "—"} <span className="text-line">·</span> con {personName(l.teacher)}
+                                </div>
+                              </div>
+
+                              <span
+                                className={`col-start-2 inline-flex items-center self-center justify-self-start rounded-sm px-2 py-0.5 font-condensed text-xs uppercase tracking-[0.08em] ring-1 ring-inset md:col-start-auto md:justify-self-end ${badgeClass(
+                                  l.status
+                                )}`}
+                              >
+                                {statusLabel(l.status)}
+                              </span>
+
+                              {isCancelled ? (
+                                <span className="hidden md:block md:w-[17.5rem]" />
+                              ) : (
+                                <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1 md:w-[17.5rem] md:justify-end">
+                                  <div className="flex">
+                                    <select
+                                      value={String(shift)}
+                                      onChange={(e) =>
+                                        setShiftById((prev) => ({ ...prev, [l.id]: Number(e.target.value) }))
+                                      }
+                                      disabled={isBusy}
+                                      aria-label="Minuti di posticipo"
+                                      className="field-theme tabular rounded-l-sm rounded-r-none border-r-0 px-2 py-2 text-sm"
+                                    >
+                                      <option value="15">+15 min</option>
+                                      <option value="30">+30 min</option>
+                                      <option value="60">+60 min</option>
+                                      <option value="90">+90 min</option>
+                                    </select>
+                                    <button
+                                      onClick={() => applyShift(l)}
+                                      disabled={isBusy}
+                                      className={`${btnCls} rounded-l-none`}
+                                    >
+                                      {isBusy ? "Attendi…" : "Posticipa"}
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    onClick={() => setConfirmId(l.id)}
+                                    disabled={isBusy}
+                                    className="rounded-sm px-2 py-2 font-condensed text-sm uppercase tracking-[0.08em] text-terracotta-dark transition-colors hover:bg-terracotta/10 disabled:opacity-50"
+                                  >
+                                    Annulla
+                                  </button>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="surface-dark mt-10 overflow-hidden rounded-lg md:mt-14" aria-labelledby="new-lesson-title">
+          <div className="flex flex-col gap-1 border-b border-[#f1debf]/20 bg-[#0f141d] px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between">
+            <h2 id="new-lesson-title" className="font-heading text-2xl font-semibold uppercase text-cream">
+              Nuova lezione
+            </h2>
+            <span className="tabular text-sm text-[#d9c5a8]">Settimana {weekRange}</span>
+          </div>
+
+          <div className="p-4">
+            <CreateLessonButton weekStart={weekStart} onCreated={() => load()} />
+          </div>
+        </section>
+      </div>
+
+      {confirmId ? (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-ink/55 px-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirmId(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+            className="surface-paper rise-in w-full max-w-md rounded-lg p-5"
+          >
+            <h2 id="confirm-title" className="font-heading text-2xl font-semibold text-ink">
+              Annullare la lezione?
+            </h2>
+            {confirmLesson ? (
+              <div className="mt-3 rounded-md border border-line bg-paper-deep px-3 py-2.5 text-sm">
+                <div className="font-semibold text-ink">
+                  {personName(confirmLesson.student)} · {confirmLesson.instrument?.name ?? "—"}
+                </div>
+                <div className="tabular text-muted">
+                  {dayLabel(confirmLesson.startsAt)}, {clock(confirmLesson.startsAt)}–{clock(confirmLesson.endsAt)}
+                </div>
+              </div>
+            ) : null}
+            <p className="mt-3 text-sm text-muted">La lezione resterà visibile come annullata.</p>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button ref={confirmBackRef} onClick={() => setConfirmId(null)} className={btnCls}>
                 Indietro
               </button>
               <button
@@ -539,7 +680,7 @@ export default function LessonsPage() {
                 }}
                 className="btn-primary rounded-sm px-3 py-2 font-condensed text-sm uppercase tracking-[0.08em]"
               >
-                Conferma
+                Sì, annulla lezione
               </button>
             </div>
           </div>

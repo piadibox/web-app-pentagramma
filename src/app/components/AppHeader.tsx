@@ -3,23 +3,41 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { personName, roleLabel } from "@/lib/labels";
 
-type Me = { userId: string; role: string } | null;
+type Me = { userId: string; role: string; fullName: string | null; username: string | null } | null;
+
+const NAV_LINKS = [
+  { href: "/lessons", label: "Lezioni di strumento" },
+  { href: "/availability", label: "Disponibilità docenti" },
+];
+
+const UPCOMING = ["Eventi e news", "Iscrizioni", "Contatti"];
 
 export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState<Me>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (pathname === "/login") return;
     let cancelled = false;
 
     fetch("/api/auth/me", { method: "GET", credentials: "include" })
-      .then(async (r) => ({ ok: r.ok, data: (await r.json()) as { userId?: string; role?: string } }))
+      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
       .then(({ ok, data }) => {
         if (cancelled) return;
-        setMe(ok ? { userId: data.userId ?? "", role: data.role ?? "" } : null);
+        setMe(
+          ok
+            ? {
+                userId: data.userId ?? "",
+                role: data.role ?? "",
+                fullName: data.fullName ?? null,
+                username: data.username ?? null,
+              }
+            : null
+        );
       })
       .catch(() => {
         if (!cancelled) setMe(null);
@@ -31,113 +49,94 @@ export default function AppHeader() {
   }, [pathname]);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   if (pathname === "/login") return null;
 
-  const isLessons = pathname.startsWith("/lessons");
-  const isAvailability = pathname.startsWith("/availability");
-
   return (
-    <header className="relative overflow-hidden border-b border-[#253040] bg-[#101721] text-[#fff8e9]">
+    <header className="relative overflow-hidden border-b border-[#253040] bg-[#101721] text-cream">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(188,78,49,0.45),transparent_45%),radial-gradient(circle_at_82%_78%,rgba(32,46,66,0.7),transparent_48%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(14,18,26,0.7),rgba(14,18,26,0.2)_45%,rgba(188,78,49,0.4))]" />
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 md:gap-5 md:py-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="rise-in space-y-1">
-            <p className="font-condensed text-xs uppercase tracking-[0.25em] text-[#f5d8b8]">Scuola di Musica</p>
-            <h1 className="font-display text-4xl font-bold uppercase leading-none text-[#fff6e6] sm:text-5xl">
-              Pentagramma
-            </h1>
-            <p className="max-w-xl text-sm text-[#e6d6bf]">
-              Gestione lezioni e pianificazione didattica con identita visuale editoriale.
-            </p>
-          </div>
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 pb-3 pt-4 md:pt-5">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/lessons" className="group flex items-center gap-3 rounded-sm">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-[3px] border-terracotta bg-[#f6e8cf] text-terracotta shadow-[0_10px_24px_-14px_rgba(8,12,16,0.9)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-rotate-6 sm:h-12 sm:w-12">
+              <span className="font-display text-2xl font-bold leading-none">P</span>
+            </span>
+            <span className="flex flex-col">
+              <span className="font-display text-2xl font-bold uppercase leading-none tracking-[0.01em] text-[#fff6e6] sm:text-3xl">
+                Pentagramma
+              </span>
+              <span className="mt-1 hidden text-xs text-[#e6d6bf] sm:block">Scuola di musica · gestionale</span>
+            </span>
+          </Link>
 
-          <div className="rise-in flex items-center gap-3 self-start md:self-auto">
+          <div className="flex items-center gap-3">
             {me?.userId ? (
-              <div className="rounded-md border border-[#f3dfc3]/30 bg-[#121923]/70 px-3 py-2 text-xs">
-                <div className="font-condensed uppercase tracking-[0.14em] text-[#f3dfc3]">{me.role}</div>
-                <div className="text-[#fff8e9]">{me.userId}</div>
+              <div className="hidden text-right leading-tight sm:block">
+                <div className="text-sm font-semibold text-cream">{personName(me)}</div>
+                <div className="font-condensed text-[11px] uppercase tracking-[0.14em] text-sand/80">
+                  {roleLabel(me.role)}
+                </div>
               </div>
             ) : null}
-            <div className="grid h-16 w-16 place-items-center rounded-full border-4 border-[#bc4e31] bg-[#f6e8cf] text-[#bc4e31] shadow-[0_14px_30px_-18px_rgba(8,12,16,0.9)] sm:h-20 sm:w-20">
-              <span className="font-display text-3xl font-bold leading-none sm:text-4xl">P</span>
-            </div>
+            {me?.userId ? (
+              <button
+                onClick={logout}
+                disabled={loggingOut}
+                className="btn-ghost-dark inline-flex items-center gap-2 rounded-sm px-3 py-2 font-condensed text-sm uppercase tracking-[0.08em]"
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M8 4H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M13 13.5 16.5 10 13 6.5M16.5 10H8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {loggingOut ? "Esco…" : "Esci"}
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="rise-in flex flex-wrap items-center justify-between gap-3">
-          <nav className="overflow-x-auto">
-            <ul className="flex min-w-max items-center gap-1 rounded-md bg-[#0f141d]/70 p-1">
+        <nav aria-label="Sezioni" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none]">
+          <ul className="flex min-w-max items-center gap-1 rounded-md bg-[#0f141d]/70 p-1">
+            {NAV_LINKS.map((item) => {
+              const active = pathname.startsWith(item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`font-condensed block rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] transition-colors duration-150 ${
+                      active
+                        ? "bg-terracotta text-cream"
+                        : "text-[#ead8bf] hover:bg-terracotta/30 hover:text-cream"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+            <li aria-hidden="true" className="mx-1 h-4 w-px bg-[#ead8bf]/20" />
+            {UPCOMING.map((label) => (
               <li
-                aria-disabled="true"
-                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
+                key={label}
+                className="font-condensed flex cursor-default items-center gap-1.5 px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/40"
               >
-                Eventi e News
-                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
+                {label}
+                <span className="rounded-full border border-[#ead8bf]/20 px-1.5 py-px text-[10px] tracking-[0.1em] text-[#ead8bf]/60">
                   presto
                 </span>
               </li>
-              <li
-                aria-disabled="true"
-                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
-              >
-                Iscrizioni
-                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
-                  presto
-                </span>
-              </li>
-              <li>
-                <Link
-                  href="/lessons"
-                  className={`font-condensed block rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] transition ${
-                    isLessons
-                      ? "bg-[#bc4e31] text-[#fff8e9]"
-                      : "bg-transparent text-[#ead8bf] hover:bg-[#bc4e31]/30 hover:text-[#fff8e9]"
-                  }`}
-                >
-                  Lezioni di Strumento
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/availability"
-                  className={`font-condensed block rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] transition ${
-                    isAvailability
-                      ? "bg-[#bc4e31] text-[#fff8e9]"
-                      : "bg-transparent text-[#ead8bf] hover:bg-[#bc4e31]/30 hover:text-[#fff8e9]"
-                  }`}
-                >
-                  Disponibilita Docenti
-                </Link>
-              </li>
-              <li
-                aria-disabled="true"
-                className="font-condensed flex cursor-default items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm uppercase tracking-[0.08em] text-[#ead8bf]/35"
-              >
-                Contatti
-                <span className="rounded-full bg-[#0f141d] px-1.5 py-0.5 text-[9px] font-normal tracking-[0.1em] text-[#ead8bf]/55">
-                  presto
-                </span>
-              </li>
-            </ul>
-          </nav>
-
-          {me?.userId ? (
-            <button
-              onClick={logout}
-              className="btn-primary rounded-sm px-4 py-2 font-condensed text-sm uppercase tracking-[0.08em]"
-            >
-              Logout
-            </button>
-          ) : (
-            <div className="text-xs uppercase tracking-[0.14em] text-[#e6d6bf]/70">Ospite</div>
-          )}
-        </div>
+            ))}
+          </ul>
+        </nav>
       </div>
     </header>
   );

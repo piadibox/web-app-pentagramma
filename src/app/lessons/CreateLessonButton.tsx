@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/ToastProvider";
+import { apiError } from "@/lib/labels";
 
 type Props = {
   weekStart: string;
@@ -92,7 +93,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
         const meData = await meRes.json().catch(() => ({}));
 
         if (!lookupsRes.ok) {
-          if (!cancelled) setLookupError(lookupsData?.error ?? `HTTP ${lookupsRes.status}`);
+          if (!cancelled) setLookupError(apiError(lookupsData, lookupsRes.status));
           return;
         }
 
@@ -142,7 +143,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        pushToast(data?.error ?? `HTTP ${res.status}`, "error");
+        pushToast(apiError(data, res.status), "error");
         setWeekLessons([]);
         return;
       }
@@ -167,7 +168,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const msg = data?.error ?? `HTTP ${res.status}`;
+        const msg = apiError(data, res.status);
         setAvailabilityError(msg);
         setAvailabilities([]);
         return;
@@ -303,36 +304,49 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        if (res.status === 409 && json?.code === "CONFLICT") {
-          pushToast(`Conflitto: ${json?.error ?? "docente/studente gia impegnato"}`, "error");
-        } else {
-          pushToast(json?.error ?? `HTTP ${res.status}`, "error");
-        }
+        pushToast(apiError(json, res.status), "error");
         return;
       }
 
       pushToast("Lezione creata", "success");
       await loadWeekLessons(weekStart);
       onCreated?.();
-    } catch (e: any) {
-      pushToast(e?.message ?? "Errore di rete", "error");
+    } catch {
+      pushToast("Connessione non riuscita. Controlla la rete e riprova.", "error");
     } finally {
       setLoading(false);
     }
   }
 
-  const preview =
+  const summaryDay = startsAt
+    ? startsAt.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })
+    : null;
+  const summaryTime =
     startsAt && endsAt
-      ? `${startsAt.toLocaleString("it-IT")} → ${endsAt.toLocaleTimeString("it-IT")}`
-      : "Nessuno slot disponibile";
+      ? `${startsAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}–${endsAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`
+      : null;
 
-  const labelCls = "font-condensed text-xs uppercase tracking-[0.12em] text-[#6f5c4c]";
-  const fieldCls = "field-theme w-full rounded-sm px-3 py-2 text-sm shadow-sm transition";
+  const loadingNote = loadingLookups
+    ? "Carico studenti e docenti…"
+    : loadingAvailability
+      ? "Carico le disponibilità del docente…"
+      : loadingWeekLessons
+        ? "Controllo le lezioni della settimana…"
+        : null;
+
+  const labelCls = "font-condensed text-xs uppercase tracking-[0.12em] text-sand";
+  const fieldCls = "field-theme w-full rounded-sm px-3 py-2 text-sm";
+
+  function dayOptionLabel(idx: number) {
+    const d = new Date(weekStart);
+    d.setUTCDate(d.getUTCDate() + idx);
+    return `${days[idx]} ${d.toLocaleDateString("it-IT", { day: "numeric", month: "numeric", timeZone: "UTC" })}`;
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <label className="space-y-1">
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-x-3 gap-y-4 md:grid-cols-3">
+        <label className="space-y-1.5">
           <div className={labelCls}>Studente</div>
           <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className={fieldCls}>
             {students.map((u) => (
@@ -343,8 +357,8 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label className="space-y-1">
-          <div className={labelCls}>Insegnante</div>
+        <label className="space-y-1.5">
+          <div className={labelCls}>Docente</div>
           <select
             value={teacherId}
             onChange={(e) => setTeacherId(e.target.value)}
@@ -359,7 +373,7 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label className="space-y-1">
+        <label className="space-y-1.5">
           <div className={labelCls}>Strumento</div>
           <select value={instrumentId} onChange={(e) => setInstrumentId(e.target.value)} className={fieldCls}>
             {instruments.map((x) => (
@@ -370,37 +384,37 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
           </select>
         </label>
 
-        <label className="space-y-1">
+        <label className="space-y-1.5">
           <div className={labelCls}>Giorno</div>
           <select
             value={String(dayIndex)}
             onChange={(e) => setDayIndex(Number(e.target.value))}
-            className={fieldCls}
+            className={`${fieldCls} tabular`}
             disabled={!availableDayIndices.length}
           >
             {availableDayIndices.length ? (
               availableDayIndices.map((idx) => (
                 <option key={idx} value={String(idx)}>
-                  {days[idx]}
+                  {dayOptionLabel(idx)}
                 </option>
               ))
             ) : (
-              <option value="0">Nessuna disponibilita</option>
+              <option value="0">Nessuna disponibilità</option>
             )}
           </select>
         </label>
 
-        <label className="space-y-1">
-          <div className={labelCls}>Orario disponibile</div>
+        <label className="space-y-1.5">
+          <div className={labelCls}>Orario</div>
           <select
             value={startClock}
             onChange={(e) => setStartClock(e.target.value)}
-            className={fieldCls}
+            className={`${fieldCls} tabular`}
             disabled={!slotOptions.length || !hasFreeSlot}
           >
             {slotOptions.length ? (
               <>
-                <option value="">Seleziona slot</option>
+                <option value="">Scegli un orario</option>
                 {slotOptions.map((slot) => (
                   <option key={slot.clock} value={slot.clock} disabled={slot.disabled}>
                     {slot.disabled ? `${slot.clock} (${slot.reason})` : slot.clock}
@@ -408,14 +422,18 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
                 ))}
               </>
             ) : (
-              <option value="">Nessuno slot</option>
+              <option value="">Nessun orario libero</option>
             )}
           </select>
         </label>
 
-        <label className="space-y-1">
+        <label className="space-y-1.5">
           <div className={labelCls}>Durata</div>
-          <select value={String(durationMin)} onChange={(e) => setDurationMin(Number(e.target.value))} className={fieldCls}>
+          <select
+            value={String(durationMin)}
+            onChange={(e) => setDurationMin(Number(e.target.value))}
+            className={`${fieldCls} tabular`}
+          >
             {[30, 45, 60, 90, 120].map((m) => (
               <option key={m} value={String(m)}>
                 {m} min
@@ -425,34 +443,48 @@ export default function CreateLessonButton({ weekStart, onCreated }: Props) {
         </label>
       </div>
 
-      <div className="rounded-sm border border-[#c6ad8e] bg-[#fff8e9] px-3 py-2 text-sm text-[#6f5c4c]">
-        <span className="font-condensed text-xs uppercase tracking-[0.12em] text-[#bc4e31]">Preview</span>{" "}
-        <span className="ml-1 font-semibold text-[#1d1712]">{preview}</span>
-      </div>
+      {!loadingAvailability && teacherId && !availableDayIndices.length && !availabilityError ? (
+        <p className="text-sm text-sand/90">
+          Questo docente non ha ancora fasce di disponibilità. Aggiungile dalla pagina{" "}
+          <a href="/availability" className="text-cream underline decoration-terracotta underline-offset-4">
+            Disponibilità docenti
+          </a>
+          .
+        </p>
+      ) : null}
 
-      <div className="flex flex-wrap items-center gap-2 text-xs text-[#7f6b59]">
-        {loadingLookups ? <span>Caricamento lookups...</span> : null}
-        {loadingAvailability ? <span>Caricamento disponibilita...</span> : null}
-        {loadingWeekLessons ? <span>Caricamento lezioni settimana...</span> : null}
-      </div>
+      <div className="flex flex-col gap-4 border-t border-[#f1debf]/15 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-h-[2.75rem]" aria-live="polite">
+          {summaryDay && summaryTime ? (
+            <>
+              <div className="font-heading text-xl font-semibold capitalize text-cream">{summaryDay}</div>
+              <div className="tabular text-sm text-sand/90">
+                {summaryTime} · {durationMin} min
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-sand/80">{loadingNote ?? "Scegli docente, giorno e orario per vedere il riepilogo."}</div>
+          )}
+        </div>
 
-      <button
-        onClick={onClick}
-        disabled={loading || !!lookupError || !!availabilityError || !startsAt || !endsAt || !hasFreeSlot}
-        className="btn-primary inline-flex items-center justify-center rounded-sm px-4 py-2 font-condensed text-sm uppercase tracking-[0.08em] disabled:opacity-60"
-      >
-        {loading ? "Creo..." : "Crea lezione"}
-      </button>
+        <button
+          onClick={onClick}
+          disabled={loading || !!lookupError || !!availabilityError || !startsAt || !endsAt || !hasFreeSlot}
+          className="btn-primary inline-flex items-center justify-center rounded-sm px-5 py-2.5 font-condensed text-sm uppercase tracking-[0.08em]"
+        >
+          {loading ? "Creo la lezione…" : "Crea lezione"}
+        </button>
+      </div>
 
       {lookupError ? (
-        <div className="rounded-sm border border-[#bc4e31]/60 bg-[#fff1df] p-3 text-sm text-[#8b321e]">
-          Errore lookups: <span className="font-mono">{lookupError}</span>
+        <div role="alert" className="rounded-sm border border-terracotta/60 bg-[#2a1a17] p-3 text-sm text-[#ffd8c6]">
+          Non riesco a caricare studenti e docenti: {lookupError}
         </div>
       ) : null}
 
       {availabilityError ? (
-        <div className="rounded-sm border border-[#bc4e31]/60 bg-[#fff1df] p-3 text-sm text-[#8b321e]">
-          Errore disponibilita: <span className="font-mono">{availabilityError}</span>
+        <div role="alert" className="rounded-sm border border-terracotta/60 bg-[#2a1a17] p-3 text-sm text-[#ffd8c6]">
+          Non riesco a caricare le disponibilità del docente: {availabilityError}
         </div>
       ) : null}
     </div>
